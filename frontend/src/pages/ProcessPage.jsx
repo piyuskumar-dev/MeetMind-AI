@@ -5,9 +5,9 @@ import { api } from '../services/api';
 import { useSSE } from '../hooks/useSSE';
 import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge';
 import { 
-  Youtube, FileAudio, Play, Loader2, CheckCircle2, 
+  FileAudio, Play, Loader2, CheckCircle2, 
   Clock, AlertTriangle, Terminal, ArrowRight, ShieldCheck,
-  Timer, BarChart3, Database, FileText
+  Timer, BarChart3, Database, FileText, Upload, X, Video, File
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,13 +16,15 @@ export const ProcessPage = () => {
   const navigate = useNavigate();
 
   // Input states
-  const [sourceType, setSourceType] = useState('youtube'); // youtube or local
-  const [sourceValue, setSourceValue] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [language, setLanguage] = useState('english');
+  const [validationError, setValidationError] = useState(null);
   
-  // Job execution states
+  // Upload and Job execution states
   const [jobId, setJobId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [pipelineError, setPipelineError] = useState(null);
   const [progress, setProgress] = useState(0);
   const [currentStage, setCurrentStage] = useState('pending');
@@ -32,6 +34,9 @@ export const ProcessPage = () => {
   const [chunksCount, setChunksCount] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [estCompletionTime, setEstCompletionTime] = useState(0); // in seconds
+  
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
 
   const milestones = [
     { 
@@ -174,9 +179,10 @@ export const ProcessPage = () => {
       
       const completedJob = {
         id: jobId,
-        source: sourceValue,
+        source: selectedFile ? selectedFile.name : 'Uploaded Media File',
         language: language,
         result: data,
+        transcript: data.transcript || '',
         timestamp: new Date().toISOString()
       };
       
@@ -197,19 +203,46 @@ export const ProcessPage = () => {
       addLog(`❌ Job execution failed: ${data.message}`, 'error');
     }
   };
- 
-  // SSE handler
-  const sseUrl = jobId ? `${api.baseUrl}/stream/${jobId}` : null;
-  const { status: sseStatus, disconnect } = useSSE(sseUrl, {
-    enabled: !!jobId && !pipelineError && progress < 100,
-    eventListeners
-  });
+
+  const { status: sseStatus, disconnect } = useSSE(
+    jobId ? `${api.baseUrl}/stream/${jobId}` : null,
+    { eventListeners }
+  );
+
+  const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const allowedExtensions = ['mp4', 'mp3', 'wav', 'mov', 'm4a', 'aac'];
+
+  const isVideoFile = (filename) => {
+    const ext = filename.split('.').pop().toLowerCase();
+    return ['mp4', 'mov'].includes(ext);
+  };
+
+  const handleFileSelection = (file) => {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      setValidationError(`Unsupported format .${ext}. Please upload a file in one of the following formats: ${allowedExtensions.join(', ').toUpperCase()}`);
+      return;
+    }
+    setValidationError(null);
+    setSelectedFile(file);
+  };
 
   const handleStartProcess = async (e) => {
     e.preventDefault();
-    if (!sourceValue.trim()) return;
+    if (!selectedFile) return;
 
     setIsSubmitting(true);
+    setIsUploading(true);
+    setUploadProgress(0);
     setPipelineError(null);
     setLogs([]);
     setProgress(0);
@@ -219,8 +252,20 @@ export const ProcessPage = () => {
     setCurrentStage('pending');
 
     try {
-      addLog(`Connecting to AI Video Assistant endpoint at ${api.baseUrl}...`, 'info');
-      const response = await api.processVideo(sourceValue.trim(), language);
+      addLog(`Initializing file upload for: ${selectedFile.name} (${formatBytes(selectedFile.size)})...`, 'info');
+      const response = await api.processVideo(
+        selectedFile, 
+        language,
+        (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+          if (percentCompleted === 100) {
+            addLog('File upload finished. Waiting for server to initialize processing pipeline...', 'info');
+          }
+        }
+      );
+      setIsUploading(false);
+      addLog(`Upload completed! File saved to server.`, 'success');
       addLog(`Analysis job successfully queued. ID: ${response.job_id}`, 'success');
       setJobId(response.job_id);
     } catch (err) {
@@ -228,6 +273,7 @@ export const ProcessPage = () => {
       setPipelineError(errMsg);
       addLog(`Error submitting request: ${errMsg}`, 'error');
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -263,73 +309,104 @@ export const ProcessPage = () => {
                   Start Analysis Pipeline
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1.5">
-                  Paste a YouTube URL or specify the path to a local media file to extract transcripts, summaries, and build a RAG knowledge base.
+                  Upload your meeting recording file (audio or video) to extract transcripts, summaries, and build a RAG knowledge base.
                 </p>
               </div>
 
               <form onSubmit={handleStartProcess} className="space-y-6">
-                {/* Source Selection Tabs */}
+                {/* Drag and Drop Container */}
                 <div>
                   <label className="block text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2.5">
-                    Source media Type
+                    Meeting Recording File
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSourceType('youtube');
-                        setSourceValue('');
+                  
+                  {!selectedFile ? (
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleFileSelection(e.dataTransfer.files[0]);
+                        }
                       }}
-                      className={`flex items-center justify-center gap-2.5 p-3.5 rounded-xl border text-xs uppercase tracking-wider font-bold transition-all duration-200 ${
-                        sourceType === 'youtube'
-                          ? 'border-accent bg-accent/5 text-accent shadow-sm'
-                          : 'border-border-light dark:border-border-dark hover:border-gray-400 dark:hover:border-gray-600 bg-white dark:bg-[#15151f]'
+                      onClick={() => document.getElementById('file-input').click()}
+                      className={`relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 ${
+                        isDragging 
+                          ? 'border-accent bg-accent/5 scale-[1.01]' 
+                          : 'border-border-light dark:border-border-dark hover:border-accent bg-white dark:bg-[#111118]/40 hover:bg-accent/[0.01]'
                       }`}
                     >
-                      <Youtube className="w-4 h-4 text-red-500" />
-                      YouTube URL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSourceType('local');
-                        setSourceValue('');
-                      }}
-                      className={`flex items-center justify-center gap-2.5 p-3.5 rounded-xl border text-xs uppercase tracking-wider font-bold transition-all duration-200 ${
-                        sourceType === 'local'
-                          ? 'border-accent bg-accent/5 text-accent shadow-sm'
-                          : 'border-border-light dark:border-border-dark hover:border-gray-400 dark:hover:border-gray-600 bg-white dark:bg-[#15151f]'
-                      }`}
-                    >
-                      <FileAudio className="w-4 h-4 text-cyan-500" />
-                      Local File
-                    </button>
-                  </div>
-                </div>
+                      <input
+                        id="file-input"
+                        type="file"
+                        className="hidden"
+                        accept=".mp4,.mp3,.wav,.mov,.m4a,.aac"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleFileSelection(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <div className="p-4 rounded-full bg-accent/5 dark:bg-accent/10 text-accent mb-4 transition-transform hover:scale-110">
+                        <Upload className="w-8 h-8" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 text-center font-syne">
+                        Drag & Drop your meeting recording here
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 text-center font-mono">
+                        or click to browse local files
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-1.5 mt-5">
+                        {allowedExtensions.map((ext) => (
+                          <span 
+                            key={ext} 
+                            className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded border border-border-light dark:border-border-dark bg-gray-50 dark:bg-[#161622] text-gray-500 dark:text-gray-400"
+                          >
+                            {ext}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Selected File Preview Component */
+                    <div className="relative p-5 border border-accent bg-accent/5 rounded-2xl flex items-center justify-between transition-all duration-300">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="p-3.5 rounded-xl bg-accent/10 text-accent flex-shrink-0">
+                          {isVideoFile(selectedFile.name) ? (
+                            <Video className="w-6 h-6" />
+                          ) : (
+                            <FileAudio className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate font-syne">
+                            {selectedFile.name}
+                          </p>
+                          <p className="text-[11px] font-mono text-gray-500 dark:text-gray-400 mt-0.5">
+                            {formatBytes(selectedFile.size)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        className="p-2 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
 
-                {/* Input Text Box */}
-                <div>
-                  <label htmlFor="source-value" className="block text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2.5">
-                    {sourceType === 'youtube' ? 'YouTube Media URL' : 'Absolute System File Path'}
-                  </label>
-                  <input
-                    id="source-value"
-                    type="text"
-                    required
-                    value={sourceValue}
-                    onChange={(e) => setSourceValue(e.target.value)}
-                    placeholder={
-                      sourceType === 'youtube'
-                        ? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-                        : '/Users/admin/Desktop/meeting.mp4'
-                    }
-                    className="w-full p-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-[#161622] font-mono text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all"
-                  />
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 leading-relaxed">
-                    {sourceType === 'youtube'
-                      ? 'Note: URL must be publicly available. Processing utilizes yt-dlp to extract high-quality audio segments.'
-                      : 'Provide the full absolute path of a WAV, MP3, or MP4 file on the local host machine.'}
-                  </p>
+                  {/* Format/Validation Alerts */}
+                  {validationError && (
+                    <div className="mt-3 text-xs text-red-500 font-semibold flex items-center gap-1.5 font-mono">
+                      <AlertTriangle className="w-4 h-4" />
+                      {validationError}
+                    </div>
+                  )}
                 </div>
 
                 {/* Transcribe Language Dropdown */}
@@ -341,28 +418,47 @@ export const ProcessPage = () => {
                     id="language-select"
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full p-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-[#161622] text-sm focus:border-accent outline-none"
+                    className="w-full p-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-[#161622] text-sm focus:border-accent outline-none font-mono"
                   >
                     <option value="english">English (Automatic Gemini Translation to English)</option>
                     <option value="hinglish">Hinglish / Code-Switched (Direct Multi-lingual Transcription)</option>
                   </select>
                 </div>
 
+                {/* Upload progress indicator */}
+                {isUploading && (
+                  <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.02] space-y-2">
+                    <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
+                      <span className="flex items-center gap-2 text-accent font-syne">
+                        <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                        Uploading media file to server...
+                      </span>
+                      <span className="font-mono text-xs text-gray-500">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-150 dark:bg-[#161622] h-2.5 rounded-full overflow-hidden border border-border-light dark:border-border-dark/60">
+                      <div
+                        style={{ width: `${uploadProgress}%` }}
+                        className="h-full rounded-full bg-accent transition-all duration-200"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Submit Trigger */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || !sourceValue.trim()}
-                  className="w-full flex items-center justify-center gap-2.5 p-4 rounded-xl text-sm font-bold tracking-wider text-white gradient-accent hover:shadow-lg hover:shadow-accent/25 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none transition-all"
+                  disabled={isSubmitting || !selectedFile}
+                  className="w-full flex items-center justify-center gap-2.5 p-4 rounded-xl text-sm font-bold tracking-wider text-white gradient-accent hover:shadow-lg hover:shadow-accent/25 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none transition-all font-syne"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      SUBMITTING JOB REQUEST...
+                      {isUploading ? 'UPLOADING RECORDING...' : 'PROCESSING MEETING...'}
                     </>
                   ) : (
                     <>
                       <Play className="w-4 h-4 fill-current" />
-                      INITIALISE AI PIPELINE
+                      PROCESS MEETING
                     </>
                   )}
                 </button>

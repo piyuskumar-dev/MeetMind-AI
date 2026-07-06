@@ -107,13 +107,16 @@ export const useSSE = (url, options = {}) => {
 
     // Custom named events listeners (e.g., 'generating_summary', 'completed')
     if (eventListenersRef.current) {
-      Object.entries(eventListenersRef.current).forEach(([eventName, handler]) => {
+      Object.keys(eventListenersRef.current).forEach((eventName) => {
         es.addEventListener(eventName, (event) => {
-          try {
-            const parsed = JSON.parse(event.data);
-            handler(parsed);
-          } catch (e) {
-            handler(event.data);
+          const currentHandler = eventListenersRef.current?.[eventName];
+          if (currentHandler) {
+            try {
+              const parsed = JSON.parse(event.data);
+              currentHandler(parsed);
+            } catch (e) {
+              currentHandler(event.data);
+            }
           }
         });
       });

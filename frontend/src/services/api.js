@@ -17,9 +17,17 @@ export const api = {
     return res.data;
   },
 
-  // Start video processing job
-  processVideo: async (source, language) => {
-    const res = await client.post('/process', { source, language });
+  // Start video processing job with file upload
+  processVideo: async (file, language, onUploadProgress) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('language', language);
+    const res = await client.post('/process', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress,
+    });
     return res.data; // returns { job_id }
   },
 

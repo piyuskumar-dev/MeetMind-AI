@@ -7,7 +7,7 @@ import { Modal } from '../components/Modal';
 import { 
   FileText, Clipboard, Download, Share2, MessageSquare, 
   ChevronRight, Calendar, ArrowLeft, Copy, Check, ChevronUp, 
-  ChevronDown, BarChart3, HelpCircle, ListTodo, FileCode, CheckCircle2
+  ChevronDown, BarChart3, HelpCircle, ListTodo, FileCode, CheckCircle2, History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -21,6 +21,7 @@ export const ResultsDashboard = () => {
   const [toast, setToast] = useState(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedStates, setCopiedStates] = useState({});
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Card collapsible states (transcript collapsed by default, others expanded)
   const [collapsedStates, setCollapsedStates] = useState({
@@ -304,11 +305,24 @@ ${selectedJob.result.questions || selectedJob.result.open_questions}
           setActiveJob(job);
         }} 
         activeJobId={selectedJob.id} 
+        mobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Dashboard */}
       <main className="flex-1 p-6 sm:p-8 overflow-y-auto max-w-5xl mx-auto relative z-10">
         
+        {/* Mobile History Toggle Button */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider font-bold bg-white dark:bg-[#111118]/80 text-accent border border-border-light dark:border-border-dark hover:border-gray-400 dark:hover:border-gray-600 transition-all active:scale-95 shadow-sm"
+          >
+            <History className="w-4 h-4 text-accent" />
+            <span>View Analysis History ({jobHistory.length})</span>
+          </button>
+        </div>
+
         {/* Actions bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 border-b border-border-light dark:border-border-dark pb-6 mb-8">
           <div>

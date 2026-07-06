@@ -149,7 +149,7 @@ export const Home = () => {
             {/* Steps text */}
             <div className="space-y-6">
               {[
-                { step: "1", title: "Job Submission", desc: "User triggers process with YouTube URL or audio/video uploads. Backend issues a job ID." },
+                { step: "1", title: "Job Submission", desc: "User uploads a meeting recording (audio or video format). Backend issues a job ID." },
                 { step: "2", title: "Event Subscription", desc: "React frontend creates EventSource connecting to /stream/{job_id} SSE endpoint." },
                 { step: "3", title: "Live Progression", desc: "As steps (transcription, summaries) run, backend pushes JSON events to client queue." },
                 { step: "4", title: "Final Deliverable", desc: "Completed results load into dashboard cache and RAG vector search becomes active." }
@@ -235,7 +235,7 @@ export const Home = () => {
           
           <h2 className="font-syne text-3xl font-bold tracking-tight mb-4">Ready to unlock meeting intelligence?</h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-            Stop manually scripting summaries. Paste the audio file or Youtube link and watch AI structure it in real-time.
+            Stop manually scripting summaries. Drag & drop your meeting recording file and watch AI structure it in real-time.
           </p>
           <Link
             to="/process"

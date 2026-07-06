@@ -7,7 +7,7 @@ import { Toast } from '../components/Toast';
 import { api } from '../services/api';
 import { 
   MessageSquare, Send, ArrowLeft, Loader2, Bot, User, 
-  Trash2, Copy, Check, Info, ShieldCheck, ChevronDown, ChevronUp, BookOpen
+  Trash2, Copy, Check, Info, ShieldCheck, ChevronDown, ChevronUp, BookOpen, History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,6 +22,7 @@ export const ChatPage = () => {
   const [chatStatus, setChatStatus] = useState('DISCONNECTED'); // CONNECTED, CONNECTING, DISCONNECTED, ERROR
   const [toast, setToast] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Track open states for citations of each message
   const [openCitations, setOpenCitations] = useState({});
@@ -35,6 +36,20 @@ export const ChatPage = () => {
       setJob(currentJob);
     }
   }, [location.state, activeJob]);
+
+  // Reset chat state and disconnect stream when job ID changes
+  useEffect(() => {
+    if (job?.id) {
+      setMessages([]);
+      setInputVal('');
+      setOpenCitations({});
+      setChatStatus('DISCONNECTED');
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    }
+  }, [job?.id]);
 
   // Smooth scroll to bottom
   useEffect(() => {
@@ -357,21 +372,42 @@ export const ChatPage = () => {
       <div className="ambient-glow-cyan top-2/3 -right-20 opacity-20" />
 
       {/* History Sidebar */}
-      <Sidebar isDashboard={false} />
+      <Sidebar 
+        isDashboard={false} 
+        activeJobId={job?.id}
+        onSelectJob={(newJob) => {
+          if (newJob.id !== job?.id) {
+            setJob(newJob);
+            navigate('/chat', { state: { job: newJob }, replace: true });
+          }
+        }}
+        mobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+      />
 
       {/* Main RAG Console */}
       <main className="flex-1 flex flex-col h-[calc(100vh-4rem)] bg-white dark:bg-[#0a0a0f]/80 backdrop-blur-md border-l border-border-light dark:border-border-dark transition-colors duration-300 relative z-10">
         
         {/* Navigation/Header Status */}
         <div className="p-4 border-b border-border-light dark:border-border-dark flex items-center justify-between bg-white dark:bg-[#111118]/90">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/results')}
-              className="p-1.5 rounded-lg border border-border-light dark:border-border-dark text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-150 dark:hover:bg-[#1a1a25] lg:hidden transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => navigate('/results')}
+                className="p-1.5 rounded-lg border border-border-light dark:border-border-dark text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-150 dark:hover:bg-[#1a1a25] lg:hidden transition-colors"
+                title="Back to dashboard"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="p-1.5 rounded-lg border border-border-light dark:border-border-dark text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-150 dark:hover:bg-[#1a1a25] lg:hidden transition-colors"
+                title="View analysis history"
+              >
+                <History className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="min-w-0">
               <h1 className="font-syne text-sm font-bold text-gray-900 dark:text-white line-clamp-1">
                 🤖 Chat Assistant: {job.result.title}
               </h1>
@@ -381,7 +417,7 @@ export const ChatPage = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             <ConnectionStatusBadge status={chatStatus === 'CONNECTING' ? 'CONNECTING' : chatStatus === 'CONNECTED' ? 'CONNECTED' : chatStatus} />
             <button
               onClick={clearChatHistory}

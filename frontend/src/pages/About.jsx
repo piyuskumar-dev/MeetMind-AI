@@ -30,7 +30,7 @@ export const About = () => {
 
         {/* Tech Stack Cards */}
         <section className="space-y-6">
-          <h2 className="font-syne text-lg font-bold uppercase tracking-wider text-gray-400 text-center">
+          <h2 className="font-syne text-lg font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
             System Technical Highlights
           </h2>
           
@@ -42,7 +42,7 @@ export const About = () => {
                 <Cpu className="w-5 h-5" />
                 FastAPI Backend Services
               </h3>
-              <ul className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400 font-sans">
+              <ul className="space-y-2.5 text-xs text-gray-700 dark:text-gray-400 font-sans">
                 <li className="flex gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent-success flex-shrink-0" />
                   <span><strong>Gemini Audio STT:</strong> Transcribes audio with high fidelity directly using Gemini models.</span>
@@ -68,7 +68,7 @@ export const About = () => {
                 <ShieldCheck className="w-5 h-5" />
                 Vite + React 19 Frontend
               </h3>
-              <ul className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400 font-sans">
+              <ul className="space-y-2.5 text-xs text-gray-700 dark:text-gray-400 font-sans">
                 <li className="flex gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent-success flex-shrink-0" />
                   <span><strong>Tailwind CSS:</strong> Standard styling config with support for dark/light themes.</span>
