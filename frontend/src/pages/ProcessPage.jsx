@@ -42,8 +42,8 @@ export const ProcessPage = () => {
     },
     { 
       key: 'transcription', 
-      label: 'Whisper Transcription', 
-      description: 'Running neural speech-to-text decoding chunk-by-chunk', 
+      label: 'Gemini Transcription', 
+      description: 'Running neural speech-to-text decoding via Gemini API', 
       progressRange: [30, 50] 
     },
     { 
@@ -129,14 +129,14 @@ export const ProcessPage = () => {
     transcribing: (data) => {
       setProgress(data.progress);
       const chunkMsg = data.chunk 
-        ? `Decoding audio segment ${data.chunk} of ${data.total_chunks} [Whisper STT]...` 
-        : 'Spawning Whisper STT worker thread...';
+        ? `Decoding audio segment ${data.chunk} of ${data.total_chunks} [Gemini STT]...` 
+        : 'Spawning Gemini STT process...';
       addLog(`📝 ${chunkMsg}`, 'info');
     },
     transcription_completed: (data) => {
       setProgress(data.progress);
       setCurrentStage('summarization');
-      addLog('✅ Whisper transcription complete. Transcript compiled successfully.', 'success');
+      addLog('✅ Gemini transcription complete. Transcript compiled successfully.', 'success');
     },
     generating_title: (data) => {
       setProgress(data.progress);
@@ -144,7 +144,7 @@ export const ProcessPage = () => {
     },
     generating_summary: (data) => {
       setProgress(data.progress);
-      addLog('📋 Running MapReduce summary pipeline (concurrent LLM tasks)...', 'info');
+      addLog('📋 Running consolidated AI meeting analysis...', 'info');
     },
     extracting_action_items: (data) => {
       setProgress(data.progress);
@@ -165,6 +165,9 @@ export const ProcessPage = () => {
       addLog('🧠 Computing sentence embeddings and building indexing structures in Chroma DB...', 'info');
     },
     completed: (data) => {
+      if (typeof disconnect === 'function') {
+        disconnect();
+      }
       setProgress(100);
       setEstCompletionTime(0);
       addLog('🎉 Pipeline analysis successfully finished! Saving results to local cache...', 'success');
@@ -187,14 +190,17 @@ export const ProcessPage = () => {
       }, 1500);
     },
     error: (data) => {
+      if (typeof disconnect === 'function') {
+        disconnect();
+      }
       setPipelineError(data.message);
       addLog(`❌ Job execution failed: ${data.message}`, 'error');
     }
   };
-
+ 
   // SSE handler
   const sseUrl = jobId ? `${api.baseUrl}/stream/${jobId}` : null;
-  const { status: sseStatus } = useSSE(sseUrl, {
+  const { status: sseStatus, disconnect } = useSSE(sseUrl, {
     enabled: !!jobId && !pipelineError && progress < 100,
     eventListeners
   });
@@ -337,7 +343,7 @@ export const ProcessPage = () => {
                     onChange={(e) => setLanguage(e.target.value)}
                     className="w-full p-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-[#161622] text-sm focus:border-accent outline-none"
                   >
-                    <option value="english">English (Automatic Whisper Translation to English)</option>
+                    <option value="english">English (Automatic Gemini Translation to English)</option>
                     <option value="hinglish">Hinglish / Code-Switched (Direct Multi-lingual Transcription)</option>
                   </select>
                 </div>

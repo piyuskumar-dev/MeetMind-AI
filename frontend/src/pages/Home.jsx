@@ -56,7 +56,7 @@ export const Home = () => {
           transition={{ delay: 0.3, duration: 0.6 }}
           className="max-w-2xl mx-auto text-lg text-gray-600 dark:text-gray-400 mb-8 leading-relaxed font-sans"
         >
-          Extract structured transcripts, comprehensive summaries, action items, core decisions, and chat with your files using local Whisper transcribing and a vector database RAG pipeline.
+          Extract structured transcripts, comprehensive summaries, action items, core decisions, and chat with your files using neural audio transcribing and a vector database RAG pipeline.
         </motion.p>
 
         <motion.div

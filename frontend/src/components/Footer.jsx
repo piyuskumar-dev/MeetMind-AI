@@ -8,7 +8,7 @@ export const Footer = () => {
         {/* Author / Repository */}
         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <Code className="w-4 h-4 text-accent" />
-          <span>Built with React 19, FastAPI, LangChain, and Whisper.</span>
+          <span>Built with React 19, FastAPI, LangChain, and Gemini.</span>
         </div>
 
         {/* Brand */}

@@ -136,22 +136,27 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         job["transcript"] = transcript
         log_event("transcription_completed", 50)
 
-        # 3. Generate Analysis outputs in parallel using asyncio.gather
+        # 3. Generate Analysis outputs using a single consolidated LLM call
         log_event("generating_summary", 60)
+        from core.analysis import analyze_transcript_async
+        analysis = await analyze_transcript_async(transcript)
         
-        title_task = generate_title_async(transcript)
-        summary_task = summarize_async(transcript)
-        action_task = extract_actionable_items_async(transcript)
-        decision_task = extract_key_decisions_async(transcript)
-        question_task = extract_questions_async(transcript)
+        title = analysis["title"]
+        summary = analysis["summary"]
+        action_items = analysis["action_items"]
+        decisions = analysis["decisions"]
+        questions = analysis["questions"]
         
-        title, summary, action_items, decisions, questions = await asyncio.gather(
-            title_task,
-            summary_task,
-            action_task,
-            decision_task,
-            question_task
-        )
+        # Sequentially trigger log stages for smooth frontend sequence progression
+        log_event("generating_title", 70)
+        await asyncio.sleep(0.1)
+        log_event("extracting_action_items", 80)
+        await asyncio.sleep(0.1)
+        log_event("extracting_decisions", 85)
+        await asyncio.sleep(0.1)
+        log_event("extracting_questions", 90)
+        await asyncio.sleep(0.1)
+
 
         # 4. Build RAG Knowledge Base
         log_event("building_rag", 95)

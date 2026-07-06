@@ -1,11 +1,14 @@
 import streamlit as st
 import time
+import uuid
 from dotenv import load_dotenv
 from utils.audio_processor import process_input
 from core.transcriber import transcribe_all
 from core.summarize import summarize, generate_title
 from core.extractor import extract_actionable_items, extract_key_decisions, extract_questions
 from core.rag_engine import build_rag_chain, ask_question
+from utils.cache import get_cached_job, save_job_to_cache
+from core.analysis import analyze_transcript
 
 load_dotenv()
 
@@ -379,31 +382,76 @@ if run_btn:
             with progress_placeholder.container():
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
 
+            # Check persistent job cache first to save costly computations
+            import datetime
+            cached_job = get_cached_job(source, language)
+            if cached_job:
+                with progress_placeholder.container():
+                    st.success("✅ Cache hit found! Loading cached results...")
+                
+                # Rapidly set status steps to done
+                for step in ["audio", "transcript", "title", "summary", "extract", "rag"]:
+                    update_step(step, "done")
+                
+                # Re-index/load RAG chain
+                rag_chain = build_rag_chain(cached_job["transcript"], cached_job["id"])
+                
+                st.session_state.result = {
+                    "title": cached_job["result"]["title"],
+                    "transcript": cached_job["transcript"],
+                    "summary": cached_job["result"]["summary"],
+                    "action_items": cached_job["result"]["action_items"],
+                    "key_decisions": cached_job["result"]["decisions"],
+                    "open_questions": cached_job["result"]["questions"],
+                    "rag_chain": rag_chain,
+                }
+                st.session_state.pipeline_done = True
+                time.sleep(0.5)
+                progress_placeholder.empty()
+                st.rerun()
+
+            # Cache miss: Execute full pipeline
+            job_id = str(uuid.uuid4())
+
             update_step("audio", "active")
             chunks = process_input(source)
             update_step("audio", "done")
 
             update_step("transcript", "active")
-            transcript = transcribe_all(chunks, language)
+            translate = (language == "english")
+            transcript = transcribe_all(chunks, translate=translate)
             update_step("transcript", "done")
 
+            # Active analysis steps
             update_step("title", "active")
-            title = generate_title(transcript)
-            update_step("title", "done")
-
             update_step("summary", "active")
-            summary = summarize(transcript)
-            update_step("summary", "done")
-
             update_step("extract", "active")
-            action_items  = extract_actionable_items(transcript)
-            decisions     = extract_key_decisions(transcript)
-            questions     = extract_questions(transcript)
+            
+            # Consolidated AI analysis
+            analysis = analyze_transcript(transcript)
+            title = analysis["title"]
+            summary = analysis["summary"]
+            action_items = analysis["action_items"]
+            decisions = analysis["decisions"]
+            questions = analysis["questions"]
+            
+            update_step("title", "done")
+            update_step("summary", "done")
             update_step("extract", "done")
 
             update_step("rag", "active")
-            rag_chain = build_rag_chain(transcript)
+            rag_chain = build_rag_chain(transcript, job_id)
             update_step("rag", "done")
+
+            result_payload = {
+                "title": title,
+                "summary": summary,
+                "action_items": action_items,
+                "decisions": decisions,
+                "key_decisions": decisions,
+                "questions": questions,
+                "open_questions": questions,
+            }
 
             st.session_state.result = {
                 "title": title,
@@ -415,6 +463,19 @@ if run_btn:
                 "rag_chain": rag_chain,
             }
             st.session_state.pipeline_done = True
+
+            # Save completed job details to cache
+            save_job_to_cache(
+                source=source,
+                language=language,
+                job_data={
+                    "id": job_id,
+                    "result": result_payload,
+                    "transcript": transcript,
+                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+                }
+            )
+
             progress_placeholder.success("✅ Analysis complete!")
             time.sleep(0.5)
             progress_placeholder.empty()
@@ -425,7 +486,6 @@ if run_btn:
                 if st.session_state.pipeline_steps.get(k) == "active":
                     st.session_state.pipeline_steps[k] = "pending"
             progress_placeholder.error(f"❌ Error: {e}")
-
 # ── Results ──────────────────────────────────────────────────────────────────────
 if st.session_state.result:
     r = st.session_state.result

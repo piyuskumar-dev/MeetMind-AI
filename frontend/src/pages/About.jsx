@@ -11,20 +11,20 @@ export const About = () => {
         <div className="text-center">
           <h1 className="font-syne text-3xl sm:text-5xl font-extrabold mb-4">About AI Video Assistant</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm max-w-lg mx-auto leading-relaxed">
-            A production-grade meeting minutes compiler that uses local neural audio transcribers and vector-index searches.
+            A production-grade meeting minutes compiler that uses neural audio transcription and vector-index searches.
           </p>
         </div>
 
         {/* Core Architectural Narrative */}
-        <section className="glass p-6 sm:p-8 rounded-2xl dark:bg-[#111118] space-y-6">
-          <h2 className="font-syne text-xl font-bold border-b border-border-light dark:border-border-dark pb-3">
+        <section className="premium-card p-6 sm:p-8 space-y-6">
+          <h2 className="font-syne text-xl font-bold border-b border-border-light dark:border-border-dark pb-3 text-gray-900 dark:text-white">
             The Problem & Our Solution
           </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-sans">
             Modern video conferences and presentations contain high concentrations of strategic deliverables, decisions, and knowledge. However, referencing past meeting specifics usually requires manual transcript scanning, which is time-consuming and error-prone.
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-            <strong>AI Video Assistant</strong> addresses this by using automatic audio splitting, local speech-to-text models, and modular retrieval systems. It streams progress events via Server-Sent Events (SSE) so users receive intermediate processing steps without waiting for long LLM chains to finish.
+          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-sans">
+            <strong>AI Video Assistant</strong> addresses this by using automatic audio splitting, Gemini-powered speech-to-text, and modular retrieval systems. It streams progress events via Server-Sent Events (SSE) so users receive intermediate processing steps without waiting for long LLM chains to finish.
           </p>
         </section>
 
@@ -37,15 +37,15 @@ export const About = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Backend stack */}
-            <div className="glass p-6 rounded-2xl dark:bg-[#111118] space-y-4">
+            <div className="premium-card p-6 space-y-4">
               <h3 className="font-syne font-bold text-md text-accent flex items-center gap-2">
                 <Cpu className="w-5 h-5" />
                 FastAPI Backend Services
               </h3>
-              <ul className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400">
+              <ul className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400 font-sans">
                 <li className="flex gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent-success flex-shrink-0" />
-                  <span><strong>Whisper STT:</strong> Converts chunks into high-fidelity English or multi-lingual texts.</span>
+                  <span><strong>Gemini Audio STT:</strong> Transcribes audio with high fidelity directly using Gemini models.</span>
                 </li>
                 <li className="flex gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent-success flex-shrink-0" />
@@ -63,12 +63,12 @@ export const About = () => {
             </div>
 
             {/* Frontend stack */}
-            <div className="glass p-6 rounded-2xl dark:bg-[#111118] space-y-4">
+            <div className="premium-card p-6 space-y-4">
               <h3 className="font-syne font-bold text-md text-accent-cyan flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5" />
                 Vite + React 19 Frontend
               </h3>
-              <ul className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400">
+              <ul className="space-y-2.5 text-xs text-gray-500 dark:text-gray-400 font-sans">
                 <li className="flex gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent-success flex-shrink-0" />
                   <span><strong>Tailwind CSS:</strong> Standard styling config with support for dark/light themes.</span>

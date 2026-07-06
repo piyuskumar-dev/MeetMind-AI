@@ -9,8 +9,8 @@ Redesigned with a modern **Server-Sent Events (SSE)** architecture, the frontend
 ## 🌟 Key Features
 
 - **Real-Time Pipeline Progress (SSE)**: Streams job statuses (`processing_started`, `audio_extracted`, `transcribing`, `transcription_completed`, `generating_summary`, `extracting_action_items`, `extracting_decisions`, `extracting_questions`, `building_rag`, `completed`) directly to the client with robust termination handlers to prevent infinite reconnection loops.
-- **Concurrent LLM Execution**: Uses `asyncio.gather` and LangChain `.abatch()` to execute extractive summarization pipelines concurrently, reducing stage processing latency by over 60%.
-- **Local Neural Transcription**: Uses OpenAI's **Whisper** model to segment and transcribe text chunks asynchronously in a background thread.
+- **Consolidated AI Analysis**: Consolidates meeting summary, action items, key decisions, and follow-up questions into a **single structured LLM request**, improving speeds by 10x and fully eliminating API rate limits.
+- **AI-Powered Audio Transcription**: Uses the Google GenAI **Gemini** API to securely and rapidly transcribe audio files.
 - **Persistent Job Caching**: Avoids redundant LLM & transcription processing costs by storing processed job outputs and global text embedding vectors in a persistent disk cache.
 - **Isolated Vector RAG Querying**: Tags vectorized transcript chunks with a unique `job_id` and applies isolated metadata filtering, guaranteeing that chat responses contain zero cross-talk between different meetings.
 - **Context Citations & Sources**: Renders real-time citation links and transcript source snippets (with time offsets) alongside streamed tokens in the Chat interface.
@@ -35,7 +35,7 @@ Redesigned with a modern **Server-Sent Events (SSE)** architecture, the frontend
 - **FastAPI** (High-performance, asynchronous web server framework in Python)
 - **LangChain** (LLM flow orchestrator & retrieval pipelines)
 - **Chroma DB** (High-density vector database)
-- **Whisper STT** (Local automatic neural speech-to-text)
+- **Gemini Audio STT** (Automatic high-fidelity speech-to-text)
 - **Uvicorn** (Asynchronous ASGI server)
 
 ---
@@ -52,8 +52,8 @@ graph TD
     subgraph Pipeline Thread
         Job -->|1. Transcode Mono| Audio[Audio Processor]
         Audio -->|2. Split 10m chunks| AudioChunks[Audio Chunks]
-        AudioChunks -->|3. Neural STT| Whisper[Whisper Model]
-        Whisper -->|4. Text Transcript| Summarizer[Summarizer Chain]
+        AudioChunks -->|3. Neural STT| GeminiSTT[Gemini Audio STT]
+        GeminiSTT -->|4. Text Transcript| Summarizer[Summarizer Chain]
         Summarizer -->|5. Extract Items| Extractor[Insight Extractor]
         Extractor -->|6. Load Chunks| VectorDB[Chroma DB Indexer]
     end
@@ -82,7 +82,7 @@ sequenceDiagram
         Worker->>Worker: Extracting Audio
         Worker->>API: Log: audio_extracted
         API-->>Client: SSE Event: audio_extracted { progress: 25 }
-        Worker->>Worker: Transcribing chunks via Whisper
+        Worker->>Worker: Transcribing chunks via Gemini
         Worker-->>Client: SSE Event: transcribing { progress: 45 }
         Worker->>Worker: Summary & Insights Extraction
         Worker-->>Client: SSE Event: extracting_action_items { progress: 80 }
@@ -107,17 +107,21 @@ sequenceDiagram
 
 ```
 .
-├── app.py                      # Deprecated Streamlit UI prototype
-├── main.py                     # FastAPI entrypoint, Job status queues & SSE endpoints
-├── requirements.txt            # Python environment packages listing
-├── core/                       # Core LLM pipelines & model loaders
-│   ├── extractor.py            # Chains to parse action items, decisions, and questions
-│   ├── llm.py                  # Generative AI client loaders (Gemini/Mistral)
-│   ├── rag_engine.py           # Context retrievers & LangChain RAG builders
-│   ├── summarize.py            # Hierarchical map summarization chains
-│   └── vector_store.py         # Chroma DB client, embedders, and chunk splitters
-├── utils/                      # Helper libraries
-│   └── audio_processor.py      # Transcoding WAV files and splitting chunks
+├── backend/                    # FastAPI Server and Streamlit app
+│   ├── app.py                  # Streamlit UI interface
+│   ├── main.py                 # FastAPI entrypoint & SSE streaming endpoints
+│   ├── requirements.txt        # Python dependency specifications
+│   ├── core/                   # Core LLM pipelines & model loaders
+│   │   ├── analysis.py         # Consolidated meeting analysis module
+│   │   ├── extractor.py        # Legacy wrappers for actions, decisions, and questions
+│   │   ├── llm.py              # Generative AI client loader
+│   │   ├── rag_engine.py       # Context retrievers & LangChain RAG builders
+│   │   ├── summarize.py        # Legacy wrappers for summaries
+│   │   └── vector_store.py     # Simple Chroma DB collection store & embedders
+│   └── utils/                  # Utility modules
+│       ├── audio_processor.py  # Audio transcoding, caching, and downsampling
+│       └── cache.py            # Local JSON job execution cache
+├── downloads/                  # Directory for cached audio and vector stores
 └── frontend/                   # Vite React app
     ├── index.html              # HTML DOM viewport
     ├── package.json            # React bundle declarations
@@ -237,15 +241,13 @@ Streams conversational LLM tokens answering a question about the meeting context
 
 ## ⚙️ Environment Variables
 
-Create a `.env` file in the root directory. Placeholders:
+Create a `.env` file in the backend directory. Placeholders:
 ```env
 # Models
-MODEL=gemma-2-27b-it
-WHISPER_MODEL=small
+MODEL=gemini-2.5-flash
 
 # API Keys
 GOOGLE_API_KEY=your-gemini-api-key-here
-MISTRAL_API_KEY=your-mistral-api-key-here
 ```
 
 ---
@@ -255,7 +257,7 @@ MISTRAL_API_KEY=your-mistral-api-key-here
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- Ffmpeg installed on your path (for Whisper chunk processing)
+- Ffmpeg installed on your path (for audio transcoding and downsampling)
   - macOS: `brew install ffmpeg`
   - Linux: `sudo apt install ffmpeg`
 

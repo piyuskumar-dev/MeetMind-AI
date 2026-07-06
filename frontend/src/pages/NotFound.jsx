@@ -10,7 +10,7 @@ export const NotFound = () => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', duration: 0.5 }}
-        className="glass p-8 rounded-3xl max-w-sm dark:bg-[#111118] space-y-6 shadow-xl border border-border-light dark:border-border-dark"
+        className="bg-white dark:bg-[#111118] p-8 rounded-3xl max-w-sm space-y-6 shadow-xl border border-border-light dark:border-border-dark"
       >
         <HelpCircle className="w-16 h-16 text-accent mx-auto animate-bounce" />
         <div>
