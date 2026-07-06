@@ -19,7 +19,7 @@ export const Footer = () => {
         {/* Social / Dev links */}
         <div className="flex items-center gap-4">
           <a
-            href="https://github.com/piyuskumar-dev/MeetMind AI"
+            href="https://github.com/piyuskumar-dev/MeetMind-AI"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-500 dark:text-gray-400 hover:text-accent transition-colors"
