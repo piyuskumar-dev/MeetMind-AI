@@ -339,7 +339,7 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown('<span class="badge badge-purple">Input</span>', unsafe_allow_html=True)
-    source = st.text_input("YouTube URL or File Path", placeholder="https://youtube.com/watch?v=... or /path/to/file.mp4")
+    uploaded_file = st.file_uploader("Upload Meeting Recording", type=["mp4", "mp3", "wav", "mov", "m4a", "aac"])
 
     language = st.selectbox("Language", ["english", "hinglish"], index=0)
 
@@ -365,8 +365,8 @@ st.markdown("---")
 
 # ── Run Pipeline ────────────────────────────────────────────────────────────────
 if run_btn:
-    if not source.strip():
-        st.error("Please enter a YouTube URL or file path.")
+    if not uploaded_file:
+        st.error("Please upload a meeting recording file.")
     else:
         st.session_state.pipeline_done = False
         st.session_state.result = None
@@ -378,9 +378,24 @@ if run_btn:
         def update_step(key, state):
             st.session_state.pipeline_steps[key] = state
 
+        # Define variables for finally cleanup block
+        temp_filepath = ""
+        chunks = []
+
         try:
             with progress_placeholder.container():
                 st.info("⚙️ Pipeline running — see sidebar for live status…")
+
+            # 1. Save uploaded file
+            import os
+            import uuid
+            os.makedirs("downloads", exist_ok=True)
+            temp_filename = f"{uuid.uuid4()}_{uploaded_file.name}"
+            temp_filepath = os.path.join("downloads", temp_filename)
+            with open(temp_filepath, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
+            source = temp_filepath
 
             # Check persistent job cache first to save costly computations
             import datetime
@@ -486,6 +501,36 @@ if run_btn:
                 if st.session_state.pipeline_steps.get(k) == "active":
                     st.session_state.pipeline_steps[k] = "pending"
             progress_placeholder.error(f"❌ Error: {e}")
+
+        finally:
+            # Clean up temporary uploaded files to avoid disk leaks
+            if temp_filepath and os.path.exists(temp_filepath):
+                try:
+                    os.remove(temp_filepath)
+                    print(f"[Cleanup] Removed Streamlit temporary file: {temp_filepath}")
+                except Exception as e:
+                    print(f"[Cleanup] Error removing temporary file {temp_filepath}: {e}")
+
+            if temp_filepath:
+                try:
+                    import hashlib
+                    path_hash = hashlib.sha256(temp_filepath.encode("utf-8")).hexdigest()[:16]
+                    converted_wav = os.path.join("downloads", f"{path_hash}_converted.wav")
+                    if os.path.exists(converted_wav):
+                        os.remove(converted_wav)
+                        print(f"[Cleanup] Removed converted WAV file: {converted_wav}")
+                except Exception as e:
+                    print(f"[Cleanup] Error removing converted WAV file: {e}")
+
+            for chunk_path in chunks:
+                try:
+                    converted_wav = os.path.join("downloads", f"{hashlib.sha256(temp_filepath.encode('utf-8')).hexdigest()[:16]}_converted.wav")
+                    if os.path.exists(chunk_path) and chunk_path != converted_wav:
+                        os.remove(chunk_path)
+                        print(f"[Cleanup] Removed chunk WAV file: {chunk_path}")
+                except Exception as e:
+                    print(f"[Cleanup] Error removing chunk file {chunk_path}: {e}")
+
 # ── Results ──────────────────────────────────────────────────────────────────────
 if st.session_state.result:
     r = st.session_state.result

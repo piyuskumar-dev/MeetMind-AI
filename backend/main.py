@@ -23,7 +23,7 @@ from core.rag_engine import (
 from core.vector_store import load_vector_store, build_vector_store
 from utils.cache import get_cached_job, save_job_to_cache
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Query, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -56,9 +56,6 @@ app.add_middleware(
 jobs: Dict[str, Dict[str, Any]] = {}
 rag_chains: Dict[str, Any] = {}
 
-class ProcessRequest(BaseModel):
-    source: str
-    language: str = "english"
 
 class ChatRequest(BaseModel):
     job_id: str
@@ -69,6 +66,7 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
     Executes the pipeline steps in an async runner and updates job progress.
     """
     job = jobs[job_id]
+    chunks = []
     
     def log_event(event_type: str, progress: int, status: str = "running", extra_data: dict = None):
         data = {"status": status, "progress": progress}
@@ -109,7 +107,7 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
             # Cache the RAG chain loader
             rag_chains[job_id] = load_rag_chain(job_id)
             
-            log_event("completed", 100, status="completed", extra_data=cached_job["result"])
+            log_event("completed", 100, status="completed", extra_data={**cached_job["result"], "transcript": cached_job["transcript"]})
             return
 
         # 1. Process input (extract audio & chunk)
@@ -192,7 +190,7 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         )
         
         # Log final completed event with data payload
-        log_event("completed", 100, status="completed", extra_data=result_payload)
+        log_event("completed", 100, status="completed", extra_data={**result_payload, "transcript": transcript})
 
     except Exception as e:
         error_msg = str(e)
@@ -201,6 +199,33 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         job["status"] = "failed"
         job["error"] = error_msg
         log_event("error", job["progress"], status="failed", extra_data={"message": error_msg})
+        
+    finally:
+        # Clean up temporary uploaded files to avoid disk leaks
+        if source and os.path.exists(source):
+            try:
+                os.remove(source)
+                print(f"[Cleanup] Removed temporary uploaded file: {source}")
+            except Exception as e:
+                print(f"[Cleanup] Error removing temporary uploaded file {source}: {e}")
+        
+        try:
+            import hashlib
+            path_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()[:16]
+            converted_wav = os.path.join("downloads", f"{path_hash}_converted.wav")
+            if os.path.exists(converted_wav):
+                os.remove(converted_wav)
+                print(f"[Cleanup] Removed converted WAV file: {converted_wav}")
+        except Exception as e:
+            print(f"[Cleanup] Error removing converted WAV file: {e}")
+            
+        for chunk_path in chunks:
+            try:
+                if os.path.exists(chunk_path) and chunk_path != converted_wav:
+                    os.remove(chunk_path)
+                    print(f"[Cleanup] Removed chunk WAV file: {chunk_path}")
+            except Exception as e:
+                print(f"[Cleanup] Error removing chunk file {chunk_path}: {e}")
 
 
 def run_pipeline_sync(source: str, language: str = "english"):
@@ -237,17 +262,50 @@ async def root():
 
 
 @app.post("/process")
-async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
+async def process_video(
+    file: UploadFile = File(...),
+    language: str = Form("english"),
+    background_tasks: BackgroundTasks = None
+):
     """
     Asynchronous endpoint to trigger processing. Returns a job_id immediately.
     """
+    filename = file.filename
+    if not filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+    allowed_exts = {'mp4', 'mp3', 'wav', 'mov', 'm4a', 'aac'}
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file extension: .{ext}. Supported formats are: {', '.join(allowed_exts)}"
+        )
+        
     job_id = str(uuid.uuid4())
+    
+    os.makedirs("downloads", exist_ok=True)
+    temp_filename = f"{uuid.uuid4()}_{filename}"
+    temp_filepath = os.path.join("downloads", temp_filename)
+    
+    try:
+        with open(temp_filepath, "wb") as buffer:
+            while chunk := await file.read(65536):
+                buffer.write(chunk)
+    except Exception as e:
+        if os.path.exists(temp_filepath):
+            try:
+                os.remove(temp_filepath)
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
+        
     import datetime
     
     jobs[job_id] = {
         "id": job_id,
-        "source": request.source,
-        "language": request.language,
+        "source": temp_filepath,
+        "language": language,
         "status": "pending",
         "progress": 0,
         "events": [],
@@ -256,8 +314,8 @@ async def process_video(request: ProcessRequest, background_tasks: BackgroundTas
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
     }
     
-    # Run the processing pipeline in a background task
-    background_tasks.add_task(run_job_pipeline, job_id, request.source, request.language)
+    if background_tasks:
+        background_tasks.add_task(run_job_pipeline, job_id, temp_filepath, language)
     
     return {"job_id": job_id}
 
@@ -370,7 +428,7 @@ async def chat_stream_get(job_id: str = Query(...), question: str = Query(...)):
 if __name__ == "__main__":
     # CLI entry point
     import sys
-    source = input("Enter YouTube URL or local file path: ").strip()
+    source = input("Enter local file path: ").strip()
     language = input("Language (english/hinglish): ").strip() or "english"
     result = run_pipeline_sync(source, language)
 
