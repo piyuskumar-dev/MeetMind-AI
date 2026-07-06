@@ -29,6 +29,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 app = FastAPI(title="AI Video Assistant API")
+print("🚀 AI Video Assistant API is starting...")
+print("Fastapi started. Listening for requests on http://localhost:8000")
 
 # Enable CORS for frontend development
 app.add_middleware(

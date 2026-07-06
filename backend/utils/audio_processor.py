@@ -39,7 +39,6 @@ def download_audio_from_youtube(url: str) -> str:
         "format": "bestaudio",
         "outtmpl": os.path.join(OUTPUT_DIR, f"{video_id}.%(ext)s"),
         "restrictfilenames": True,  # Restricts filenames to ASCII-safe characters
-        "ffmpeg_location": "/opt/homebrew/bin",
         "noplaylist": True,
         "quiet": False,
         "postprocessors": [
