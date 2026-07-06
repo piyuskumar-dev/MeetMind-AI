@@ -1,6 +1,6 @@
 # MEETMIND AI (AI-Powered Video & Meeting Assistant)
 
-An advanced, recruiter-ready, real-time AI Meeting & Video Assistant. Paste a YouTube URL or specify a local video/audio file path, and the application transcribes, translates, summarizes, and extracts key decisions and action items. Includes a Retrieval-Augmented Generation (RAG) conversational interface to chat token-by-token with the meeting transcript content.
+An advanced, recruiter-ready, real-time AI Meeting & Video Assistant. Upload your meeting recording file (audio or video), and the application transcribes, translates, summarizes, and extracts key decisions and action items. Includes a Retrieval-Augmented Generation (RAG) conversational interface to chat token-by-token with the meeting transcript content.
 
 Redesigned with a modern **Server-Sent Events (SSE)** architecture, the frontend streams intermediate stage milestones in real-time to prevent long I/O wait times.
 
@@ -160,16 +160,13 @@ sequenceDiagram
 ## 🔌 API Documentation
 
 ### 1. Trigger Video/Audio Processing
-Asynchronously enqueues a source video file or YouTube URL for analysis.
+Asynchronously uploads a recording file and enqueues it for analysis.
 - **URL**: `/process`
 - **Method**: `POST`
-- **Request Body**:
-  ```json
-  {
-    "source": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "language": "english"
-  }
-  ```
+- **Request Type**: `multipart/form-data`
+- **Form Data Fields**:
+  - `file`: The raw audio/video file (supported extensions: `.mp4`, `.mp3`, `.wav`, `.mov`, `.m4a`, `.aac`)
+  - `language`: Target language, either `"english"` or `"hinglish"` (defaults to `"english"`)
 - **Response Body**:
   ```json
   {
@@ -239,9 +236,63 @@ Streams conversational LLM tokens answering a question about the meeting context
 
 ---
 
-## ⚙️ Environment Variables
+## 📁 Repository Layout
 
-Create a `.env` file in the backend directory. Placeholders:
+```
+.
+├── backend/                    # FastAPI Server and Streamlit app
+│   ├── app.py                  # Streamlit UI interface
+│   ├── main.py                 # FastAPI entrypoint & SSE streaming endpoints
+│   ├── requirements.txt        # Python dependency specifications
+│   ├── core/                   # Core LLM pipelines & model loaders
+│   │   ├── analysis.py         # Consolidated meeting analysis module
+│   │   ├── extractor.py        # Legacy wrappers for actions, decisions, and questions
+│   │   ├── llm.py              # Generative AI client loader
+│   │   ├── rag_engine.py       # Context retrievers & LangChain RAG builders
+│   │   ├── summarize.py        # Legacy wrappers for summaries
+│   │   └── vector_store.py     # Simple Chroma DB collection store & embedders
+│   └── utils/                  # Utility modules
+│       ├── audio_processor.py  # Audio transcoding, caching, and downsampling
+│       └── cache.py            # Local JSON job execution cache
+├── downloads/                  # Directory for cached audio and vector stores
+└── frontend/                   # Vite React app
+    ├── index.html              # HTML DOM viewport
+    ├── package.json            # React bundle declarations
+    ├── postcss.config.js       # CSS preprocessing
+    ├── tailwind.config.js      # CSS design tokens & utilities config
+    └── src/
+        ├── App.jsx             # Router layout & page routing paths
+        ├── main.jsx            # React root renderer
+        ├── index.css           # Global custom classes & Tailwind base
+        ├── assets/             # Assets and media
+        ├── context/
+        │   └── AppContext.jsx  # Context provider (Dark mode, LocalStorage history)
+        ├── hooks/
+        │   └── useSSE.js       # Reusable SSE subscriber hook with auto-retry
+        ├── services/
+        │   ├── api.js          # REST API endpoints wrapper (Axios)
+        │   └── sse.js          # Vanilla EventSource helpers
+        ├── components/
+        │   ├── Navbar.jsx      # Navigation bar with dark mode toggle
+        │   ├── Sidebar.jsx     # Analysis history listing sidebar
+        │   ├── Footer.jsx      # Footer information wrapper
+        │   ├── ConnectionStatusBadge.jsx  # Connection diagnostic indicator
+        │   ├── Toast.jsx       # Alert feedback box (Framer Motion)
+        │   └── Modal.jsx       # Dialog popup container
+        └── pages/
+            ├── Home.jsx        # Landing hero and sequence features
+            ├── ProcessPage.jsx # Submission forms and Terminal Progress consoles
+            ├── ResultsDashboard.jsx # Summary views, Markdown/PDF download controls
+            ├── ChatPage.jsx    # Stream RAG chatting log and MD renderer
+            ├── About.jsx       # Tech stack descriptions
+            └── NotFound.jsx    # 404 page
+```
+
+---
+
+## ⚙️ Environment Configuration
+
+Create a `.env` file in the `backend/` directory:
 ```env
 # Models
 MODEL=gemini-2.5-flash
@@ -252,47 +303,47 @@ GOOGLE_API_KEY=your-gemini-api-key-here
 
 ---
 
-## 🚀 Installation & Running
+## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Ffmpeg installed on your path (for audio transcoding and downsampling)
-  - macOS: `brew install ffmpeg`
-  - Linux: `sudo apt install ffmpeg`
+*   **Python 3.10+**
+*   **Node.js 18+**
+*   **Ffmpeg** installed on system PATH:
+    *   macOS: `brew install ffmpeg`
+    *   Linux: `sudo apt install ffmpeg`
 
-### Backend Setup
-1. Create a virtual environment and activate it:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the FastAPI development server:
-   ```bash
-   python3 -m uvicorn main:app --port 8000 --reload
-   ```
+### Backend Service Setup
+1.  Initialize virtual environment:
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    ```
+2.  Install required dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  Launch the FastAPI server:
+    ```bash
+    python3 -m uvicorn main:app --port 8000 --reload
+    ```
 
-### Frontend Setup
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-2. Sync node modules:
-   ```bash
-   npm install --legacy-peer-deps
-   ```
-3. Launch local dev server:
-   ```bash
-   npm run dev
-   ```
-4. Access the web interface in your browser at `http://localhost:5173`.
+### Frontend UI Setup
+1.  Navigate to the frontend directory:
+    ```bash
+    cd frontend
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install --legacy-peer-deps
+    ```
+3.  Launch the development server:
+    ```bash
+    npm run dev
+    ```
+4.  Open `http://localhost:5173` in your browser.
 
 ---
 
 ## 📝 License
 
-This project is licensed under the MIT License.
+This project is open-source software licensed under the MIT License.
