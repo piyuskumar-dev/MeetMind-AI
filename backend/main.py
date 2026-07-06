@@ -1,0 +1,390 @@
+from dotenv import load_dotenv
+load_dotenv()   # MUST be before any core/ imports
+
+import os
+import uuid
+import json
+import asyncio
+import traceback
+from typing import Dict, Any
+
+from utils.audio_processor import process_input
+from core.transcriber import transcribe_all, transcribe_chunk
+from core.summarize import (
+    summarize, generate_title, summarize_async, generate_title_async
+)
+from core.extractor import (
+    extract_actionable_items, extract_key_decisions, extract_questions,
+    extract_actionable_items_async, extract_key_decisions_async, extract_questions_async
+)
+from core.rag_engine import (
+    build_rag_chain, ask_question, load_rag_chain, get_rag_components, format_docs
+)
+from core.vector_store import load_vector_store, build_vector_store
+from utils.cache import get_cached_job, save_job_to_cache
+
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+app = FastAPI(title="AI Video Assistant API")
+
+# Enable CORS for frontend development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify the frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# In-memory database to store job status and events
+# Format:
+# jobs[job_id] = {
+#     "id": job_id,
+#     "source": source,
+#     "language": language,
+#     "status": "pending" | "running" | "completed" | "failed",
+#     "progress": int,
+#     "events": List[Dict[str, Any]],
+#     "result": Dict[str, Any] or None,
+#     "error": str or None
+# }
+jobs: Dict[str, Dict[str, Any]] = {}
+rag_chains: Dict[str, Any] = {}
+
+class ProcessRequest(BaseModel):
+    source: str
+    language: str = "english"
+
+class ChatRequest(BaseModel):
+    job_id: str
+    question: str
+
+async def run_job_pipeline(job_id: str, source: str, language: str):
+    """
+    Executes the pipeline steps in an async runner and updates job progress.
+    """
+    job = jobs[job_id]
+    
+    def log_event(event_type: str, progress: int, status: str = "running", extra_data: dict = None):
+        data = {"status": status, "progress": progress}
+        if extra_data:
+            data.update(extra_data)
+        job["progress"] = progress
+        job["events"].append({"event": event_type, "data": data})
+        print(f"[Job {job_id}] Event: {event_type} - progress: {progress}%")
+
+    try:
+        log_event("processing_started", 5)
+
+        # 0. Check persistent job cache first to save costly computations
+        cached_job = get_cached_job(source, language)
+        if cached_job:
+            print(f"[Job {job_id}] Cache hit found! Loading cached results...")
+            
+            # Map cached output to our current job ID
+            job["result"] = cached_job["result"]
+            job["transcript"] = cached_job["transcript"]
+            job["status"] = "completed"
+            
+            # Index/Verify vector DB in background if not present
+            try:
+                vector_store = load_vector_store()
+                existing = vector_store.get(where={"job_id": job_id})
+                if not existing or len(existing.get("ids", [])) == 0:
+                    print(f"[Job {job_id}] Re-indexing transcript chunks in background...")
+                    build_vector_store(cached_job["transcript"], job_id)
+            except Exception as e:
+                print(f"[Job {job_id}] Cache vector DB validation issue: {e}")
+
+            # Replay progression stream quickly to let client update UI state
+            log_event("audio_extracted", 25, extra_data={"chunks_count": 1})
+            log_event("transcription_completed", 50)
+            log_event("building_rag", 90)
+            
+            # Cache the RAG chain loader
+            rag_chains[job_id] = load_rag_chain(job_id)
+            
+            log_event("completed", 100, status="completed", extra_data=cached_job["result"])
+            return
+
+        # 1. Process input (extract audio & chunk)
+        log_event("audio_extraction_started", 10)
+        # Process input runs ffmpeg tasks and file splits. Execute in executor thread.
+        chunks = await asyncio.to_thread(process_input, source)
+        log_event("audio_extracted", 25, extra_data={"chunks_count": len(chunks)})
+
+        # 2. Transcription chunk by chunk (non-blocking thread)
+        log_event("transcribing", 30, extra_data={"chunk": 0, "total_chunks": len(chunks)})
+        
+        translate = (language == "english")
+        full_transcription = ""
+        total_chunks = len(chunks)
+        
+        for i, chunk_path in enumerate(chunks):
+            log_event("transcribing", 30 + int((i / total_chunks) * 20), extra_data={
+                "chunk": i + 1,
+                "total_chunks": total_chunks,
+                "message": f"Transcribing chunk {i+1} of {total_chunks}"
+            })
+            result = await asyncio.to_thread(transcribe_chunk, chunk_path, translate=translate)
+            full_transcription += result + " "
+            
+        transcript = full_transcription.strip()
+        job["transcript"] = transcript
+        log_event("transcription_completed", 50)
+
+        # 3. Generate Analysis outputs in parallel using asyncio.gather
+        log_event("generating_summary", 60)
+        
+        title_task = generate_title_async(transcript)
+        summary_task = summarize_async(transcript)
+        action_task = extract_actionable_items_async(transcript)
+        decision_task = extract_key_decisions_async(transcript)
+        question_task = extract_questions_async(transcript)
+        
+        title, summary, action_items, decisions, questions = await asyncio.gather(
+            title_task,
+            summary_task,
+            action_task,
+            decision_task,
+            question_task
+        )
+
+        # 4. Build RAG Knowledge Base
+        log_event("building_rag", 95)
+        # Vector database builds Sentence-Transformers embeds. Keep in thread pool.
+        await asyncio.to_thread(build_vector_store, transcript, job_id)
+        rag_chains[job_id] = load_rag_chain(job_id)
+        
+        result_payload = {
+            "title": title,
+            "summary": summary,
+            "action_items": action_items,
+            "decisions": decisions,
+            "key_decisions": decisions,  # compatibility key
+            "questions": questions,
+            "open_questions": questions,  # compatibility key
+        }
+        
+        job["result"] = result_payload
+        job["status"] = "completed"
+        
+        # Save output to persistent cache
+        save_job_to_cache(
+            source=source,
+            language=language,
+            job_data={
+                "id": job_id,
+                "result": result_payload,
+                "transcript": transcript,
+                "timestamp": job.get("timestamp")
+            }
+        )
+        
+        # Log final completed event with data payload
+        log_event("completed", 100, status="completed", extra_data=result_payload)
+
+    except Exception as e:
+        error_msg = str(e)
+        tb = traceback.format_exc()
+        print(f"[Job {job_id}] Exception occurred:\n{tb}")
+        job["status"] = "failed"
+        job["error"] = error_msg
+        log_event("error", job["progress"], status="failed", extra_data={"message": error_msg})
+
+
+def run_pipeline_sync(source: str, language: str = "english"):
+    """
+    Synchronous version of the pipeline for CLI usage.
+    """
+    print("Starting the AI Video Assistant pipeline (Sync)...")
+    chunks = process_input(source)
+    transcript = transcribe_all(chunks, translate=(language == "english"))
+    
+    title = generate_title(transcript)
+    summary = summarize(transcript)
+    action_items = extract_actionable_items(transcript)
+    decisions = extract_key_decisions(transcript)
+    questions = extract_questions(transcript)
+    
+    job_id = "cli_sync"
+    build_vector_store(transcript, job_id)
+    rag_chain = load_rag_chain(job_id)
+
+    return {
+        "title": title,
+        "summary": summary,
+        "action_items": action_items,
+        "decisions": decisions,
+        "questions": questions,
+        "rag_chain": rag_chain
+    }
+
+
+@app.get("/")
+async def root():
+    return {"message": "AI Video Assistant is running!"}
+
+
+@app.post("/process")
+async def process_video(request: ProcessRequest, background_tasks: BackgroundTasks):
+    """
+    Asynchronous endpoint to trigger processing. Returns a job_id immediately.
+    """
+    job_id = str(uuid.uuid4())
+    import datetime
+    
+    jobs[job_id] = {
+        "id": job_id,
+        "source": request.source,
+        "language": request.language,
+        "status": "pending",
+        "progress": 0,
+        "events": [],
+        "result": None,
+        "error": None,
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    
+    # Run the processing pipeline in a background task
+    background_tasks.add_task(run_job_pipeline, job_id, request.source, request.language)
+    
+    return {"job_id": job_id}
+
+
+@app.get("/stream/{job_id}")
+async def stream_job(job_id: str):
+    """
+    Server-Sent Events endpoint that streams progress updates for a job.
+    """
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    async def event_generator():
+        job = jobs[job_id]
+        read_index = 0
+        
+        while True:
+            # Yield any unread events
+            while read_index < len(job["events"]):
+                event_data = job["events"][read_index]
+                read_index += 1
+                yield f"event: {event_data['event']}\ndata: {json.dumps(event_data['data'])}\n\n"
+            
+            # If completed or failed, we can terminate the stream
+            if job["status"] in ["completed", "failed"]:
+                break
+                
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """
+    POST endpoint for streaming RAG responses token-by-token.
+    """
+    job_id = request.job_id
+    question = request.question
+
+    try:
+        retriever, llm_chain = get_rag_components(job_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"RAG system not initialized: {e}")
+
+    async def response_generator():
+        try:
+            # 1. Retrieve the matching docs using ainvoke (async non-blocking)
+            docs = await retriever.ainvoke(question)
+            
+            # 2. Yield the sources to the client
+            sources_data = [
+                {
+                    "chunk_index": doc.metadata.get("chunk_index", 0),
+                    "content": doc.page_content
+                }
+                for doc in docs
+            ]
+            yield f"event: sources\ndata: {json.dumps(sources_data)}\n\n"
+            
+            # 3. Stream the generation tokens from the LLM chain
+            context_str = format_docs(docs)
+            async for chunk in llm_chain.astream({"context": context_str, "question": question}):
+                yield f"data: {json.dumps({'token': chunk})}\n\n"
+                
+            yield "event: completed\ndata: {}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+    return StreamingResponse(response_generator(), media_type="text/event-stream")
+
+
+@app.get("/chat/stream")
+async def chat_stream_get(job_id: str = Query(...), question: str = Query(...)):
+    """
+    GET version of chat streaming for standard EventSource compatibility.
+    """
+    try:
+        retriever, llm_chain = get_rag_components(job_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"RAG system not initialized: {e}")
+
+    async def response_generator():
+        try:
+            # 1. Retrieve the matching docs using ainvoke
+            docs = await retriever.ainvoke(question)
+            
+            # 2. Yield the sources to the client
+            sources_data = [
+                {
+                    "chunk_index": doc.metadata.get("chunk_index", 0),
+                    "content": doc.page_content
+                }
+                for doc in docs
+            ]
+            yield f"event: sources\ndata: {json.dumps(sources_data)}\n\n"
+            
+            # 3. Stream the generation tokens
+            context_str = format_docs(docs)
+            async for chunk in llm_chain.astream({"context": context_str, "question": question}):
+                yield f"data: {json.dumps({'token': chunk})}\n\n"
+                
+            yield "event: completed\ndata: {}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
+    return StreamingResponse(response_generator(), media_type="text/event-stream")
+
+
+if __name__ == "__main__":
+    # CLI entry point
+    import sys
+    source = input("Enter YouTube URL or local file path: ").strip()
+    language = input("Language (english/hinglish): ").strip() or "english"
+    result = run_pipeline_sync(source, language)
+
+    print("\n" + "=" * 60)
+    print(f"📌 Title: {result['title']}")
+    print(f"\n📋 Summary:\n{result['summary']}")
+    print(f"\n✅ Action Items:\n{result['action_items']}")
+    print(f"\n🔑 Key Decisions:\n{result['decisions']}")
+    print(f"\n❓ Open Questions:\n{result['questions']}")
+    print("=" * 60)
+
+    # CLI Chat loop
+    print("\n💬 Chat with your meeting (type 'exit' to quit)\n")
+    job_id = "cli_sync"
+    retriever, llm_chain = get_rag_components(job_id)
+    while True:
+        question = input("You: ").strip()
+        if question.lower() in ["exit", "quit", "q"]:
+            print("👋 Goodbye!")
+            break
+        if not question:
+            continue
+        answer = ask_question(retriever, question, llm_chain)
+        print(f"\n🤖 Assistant: {answer}\n")

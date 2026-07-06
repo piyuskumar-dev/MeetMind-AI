@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans transition-colors duration-300 bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100;
+  }
+}
+
+/* Premium Custom Colors & Gradients */
+.gradient-accent {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #06b6d4 100%);
+}
+
+.gradient-dark-banner {
+  background: linear-gradient(180deg, rgba(26, 26, 37, 0.6) 0%, rgba(10, 10, 15, 0.95) 100%);
+}
+
+.gradient-text-glow {
+  background: linear-gradient(135deg, #a855f7 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glassmorphism custom classes */
+.glass {
+  background: rgba(17, 17, 24, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(42, 42, 58, 0.4);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Sleek Premium Glass Panel for dashboard elements */
+.premium-card {
+  @apply bg-white dark:bg-[#111118] border border-border-light dark:border-border-dark rounded-2xl shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700/80 transition-all duration-300;
+}
+
+.premium-card-active {
+  @apply border-accent bg-accent/[0.02] dark:bg-accent/[0.01];
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.45);
+}
+
+/* Streaming Blinking Cursor */
+.streaming-cursor::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 15px;
+  background-color: #7c3aed;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { background-color: transparent }
+  50% { background-color: #7c3aed }
+}
+
+/* Accent glow background elements */
+.ambient-glow {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.08) 0%, rgba(124, 58, 237, 0) 70%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.ambient-glow-cyan {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.06) 0%, rgba(6, 182, 212, 0) 70%);
+  pointer-events: none;
+  filter: blur(30px);
+}
+
+/* Code Highlights Container */
+.code-container {
+  @apply font-mono text-xs p-4 rounded-xl overflow-x-auto bg-[#0a0a0f] border border-border-dark text-gray-300;
+}

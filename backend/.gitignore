@@ -1,0 +1,6 @@
+.env
+.venv
+downloads
+vector_store
+
+__pycache__
