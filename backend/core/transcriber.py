@@ -37,5 +37,25 @@ def transcribe_all(chunks: list, translate: bool = False) -> str:
         print(f"Transcribing chunk: {i+1} of {len(chunks)}")
         result = transcribe_chunk(chunk_path, translate=translate)
         full_transcription += result + " "
+        
+        # Eagerly delete chunk file to save disk space
+        try:
+            if os.path.exists(chunk_path):
+                os.remove(chunk_path)
+                print(f"[Cleanup] Eagerly removed transcribed chunk file: {chunk_path}")
+        except Exception as e:
+            print(f"[Cleanup] Error removing chunk file {chunk_path}: {e}")
+            
     print(f"Transcription completed for all chunks.")
+    
+    # Try to clean up the chunks directory if it is now empty
+    if chunks:
+        try:
+            chunks_dir = os.path.dirname(chunks[0])
+            if os.path.exists(chunks_dir) and not os.listdir(chunks_dir):
+                os.rmdir(chunks_dir)
+                print(f"[Cleanup] Removed empty chunks directory: {chunks_dir}")
+        except Exception as e:
+            print(f"[Cleanup] Error removing chunks directory: {e}")
+            
     return full_transcription

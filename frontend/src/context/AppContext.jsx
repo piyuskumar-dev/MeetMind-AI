@@ -1,8 +1,36 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
+  // Backend availability state ('WAKING_UP' | 'ONLINE')
+  const [backendStatus, setBackendStatus] = useState('WAKING_UP');
+
+  useEffect(() => {
+    let active = true;
+    const checkConnection = async () => {
+      try {
+        await api.getRoot();
+        if (active) {
+          setBackendStatus('ONLINE');
+          console.log('[Backend] Connection established successfully.');
+        }
+      } catch (err) {
+        if (active) {
+          console.log('[Backend] Connection failed. Backend is likely waking up...');
+          setBackendStatus('WAKING_UP');
+          // Check again in 3 seconds
+          setTimeout(checkConnection, 3000);
+        }
+      }
+    };
+    checkConnection();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Theme state
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -63,7 +91,8 @@ export const AppProvider = ({ children }) => {
         addJobToHistory,
         removeJobFromHistory,
         activeJob,
-        setActiveJob
+        setActiveJob,
+        backendStatus
       }}
     >
       {children}

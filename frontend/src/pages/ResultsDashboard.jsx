@@ -300,10 +300,6 @@ ${selectedJob.result.questions || selectedJob.result.open_questions}
       {/* Sidebar selection */}
       <Sidebar 
         isDashboard={true} 
-        onSelectJob={(job) => {
-          setSelectedJob(job);
-          setActiveJob(job);
-        }} 
         activeJobId={selectedJob.id} 
         mobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}

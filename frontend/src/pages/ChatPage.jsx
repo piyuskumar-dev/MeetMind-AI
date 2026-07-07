@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const ChatPage = () => {
-  const { activeJob } = useApp();
+  const { activeJob, backendStatus } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -375,12 +375,6 @@ export const ChatPage = () => {
       <Sidebar 
         isDashboard={false} 
         activeJobId={job?.id}
-        onSelectJob={(newJob) => {
-          if (newJob.id !== job?.id) {
-            setJob(newJob);
-            navigate('/chat', { state: { job: newJob }, replace: true });
-          }
-        }}
         mobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
@@ -418,7 +412,13 @@ export const ChatPage = () => {
           </div>
           
           <div className="flex items-center gap-2.5 flex-shrink-0">
-            <ConnectionStatusBadge status={chatStatus === 'CONNECTING' ? 'CONNECTING' : chatStatus === 'CONNECTED' ? 'CONNECTED' : chatStatus} />
+            <ConnectionStatusBadge status={
+              backendStatus === 'WAKING_UP' 
+                ? 'CONNECTING' 
+                : (chatStatus === 'CONNECTING' || chatStatus === 'CONNECTED' || chatStatus === 'ERROR') 
+                  ? chatStatus 
+                  : 'CONNECTED'
+            } />
             <button
               onClick={clearChatHistory}
               className="p-2 rounded-xl border border-border-light dark:border-border-dark text-gray-400 hover:text-accent-danger hover:bg-accent-danger/5 transition-colors cursor-pointer bg-transparent"

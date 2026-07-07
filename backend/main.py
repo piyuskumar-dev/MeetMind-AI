@@ -61,7 +61,7 @@ class ChatRequest(BaseModel):
     job_id: str
     question: str
 
-async def run_job_pipeline(job_id: str, source: str, language: str):
+async def run_job_pipeline(job_id: str, temp_filepath: str, file_hash: str, language: str):
     """
     Executes the pipeline steps in an async runner and updates job progress.
     """
@@ -80,7 +80,8 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         log_event("processing_started", 5)
 
         # 0. Check persistent job cache first to save costly computations
-        cached_job = get_cached_job(source, language)
+        cache_source_key = f"hash:{file_hash}"
+        cached_job = get_cached_job(cache_source_key, language)
         if cached_job:
             print(f"[Job {job_id}] Cache hit found! Loading cached results...")
             
@@ -89,6 +90,14 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
             job["transcript"] = cached_job["transcript"]
             job["status"] = "completed"
             
+            # Clean up the original file immediately on cache hit
+            if os.path.exists(temp_filepath):
+                try:
+                    os.remove(temp_filepath)
+                    print(f"[Cleanup] Eagerly removed temp upload file on cache hit: {temp_filepath}")
+                except Exception as e:
+                    print(f"[Cleanup] Error removing temp file: {e}")
+
             # Index/Verify vector DB in background if not present
             try:
                 vector_store = load_vector_store()
@@ -113,8 +122,16 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         # 1. Process input (extract audio & chunk)
         log_event("audio_extraction_started", 10)
         # Process input runs ffmpeg tasks and file splits. Execute in executor thread.
-        chunks = await asyncio.to_thread(process_input, source)
+        chunks = await asyncio.to_thread(process_input, temp_filepath)
         log_event("audio_extracted", 25, extra_data={"chunks_count": len(chunks)})
+
+        # Eagerly delete the original uploaded file immediately after audio processing
+        if os.path.exists(temp_filepath):
+            try:
+                os.remove(temp_filepath)
+                print(f"[Cleanup] Eagerly removed original uploaded file: {temp_filepath}")
+            except Exception as e:
+                print(f"[Cleanup] Error removing uploaded file {temp_filepath}: {e}")
 
         # 2. Transcription chunk by chunk (non-blocking thread)
         log_event("transcribing", 30, extra_data={"chunk": 0, "total_chunks": len(chunks)})
@@ -132,9 +149,27 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
             result = await asyncio.to_thread(transcribe_chunk, chunk_path, translate=translate)
             full_transcription += result + " "
             
+            # Eagerly delete chunk file immediately after transcription
+            try:
+                if os.path.exists(chunk_path):
+                    os.remove(chunk_path)
+                    print(f"[Cleanup] Eagerly removed transcribed chunk file: {chunk_path}")
+            except Exception as e:
+                print(f"[Cleanup] Error removing chunk file {chunk_path}: {e}")
+            
         transcript = full_transcription.strip()
         job["transcript"] = transcript
         log_event("transcription_completed", 50)
+
+        # Clean up the empty chunks directory
+        if chunks:
+            try:
+                chunks_dir = os.path.dirname(chunks[0])
+                if os.path.exists(chunks_dir) and not os.listdir(chunks_dir):
+                    os.rmdir(chunks_dir)
+                    print(f"[Cleanup] Removed empty chunks directory: {chunks_dir}")
+            except Exception as e:
+                print(f"[Cleanup] Error removing chunks directory: {e}")
 
         # 3. Generate Analysis outputs using a single consolidated LLM call
         log_event("generating_summary", 60)
@@ -157,7 +192,6 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         log_event("extracting_questions", 90)
         await asyncio.sleep(0.1)
 
-
         # 4. Build RAG Knowledge Base
         log_event("building_rag", 95)
         # Vector database builds Sentence-Transformers embeds. Keep in thread pool.
@@ -179,7 +213,7 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         
         # Save output to persistent cache
         save_job_to_cache(
-            source=source,
+            source=cache_source_key,
             language=language,
             job_data={
                 "id": job_id,
@@ -201,31 +235,33 @@ async def run_job_pipeline(job_id: str, source: str, language: str):
         log_event("error", job["progress"], status="failed", extra_data={"message": error_msg})
         
     finally:
-        # Clean up temporary uploaded files to avoid disk leaks
-        if source and os.path.exists(source):
+        # Fallback cleanups to prevent storage leaks if an exception occurred
+        if temp_filepath and os.path.exists(temp_filepath):
             try:
-                os.remove(source)
-                print(f"[Cleanup] Removed temporary uploaded file: {source}")
-            except Exception as e:
-                print(f"[Cleanup] Error removing temporary uploaded file {source}: {e}")
-        
-        try:
-            import hashlib
-            path_hash = hashlib.sha256(source.encode("utf-8")).hexdigest()[:16]
-            converted_wav = os.path.join("downloads", f"{path_hash}_converted.wav")
-            if os.path.exists(converted_wav):
-                os.remove(converted_wav)
-                print(f"[Cleanup] Removed converted WAV file: {converted_wav}")
-        except Exception as e:
-            print(f"[Cleanup] Error removing converted WAV file: {e}")
+                os.remove(temp_filepath)
+                print(f"[Cleanup Fallback] Removed temporary uploaded file: {temp_filepath}")
+            except Exception:
+                pass
             
         for chunk_path in chunks:
             try:
-                if os.path.exists(chunk_path) and chunk_path != converted_wav:
+                if os.path.exists(chunk_path):
                     os.remove(chunk_path)
-                    print(f"[Cleanup] Removed chunk WAV file: {chunk_path}")
-            except Exception as e:
-                print(f"[Cleanup] Error removing chunk file {chunk_path}: {e}")
+                    print(f"[Cleanup Fallback] Removed chunk WAV file: {chunk_path}")
+            except Exception:
+                pass
+                
+        if chunks:
+            try:
+                chunks_dir = os.path.dirname(chunks[0])
+                if os.path.exists(chunks_dir):
+                    for f in os.listdir(chunks_dir):
+                        os.remove(os.path.join(chunks_dir, f))
+                    os.rmdir(chunks_dir)
+                    print(f"[Cleanup Fallback] Removed chunks directory: {chunks_dir}")
+            except Exception:
+                pass
+
 
 
 def run_pipeline_sync(source: str, language: str = "english"):
@@ -288,10 +324,39 @@ async def process_video(
     temp_filename = f"{uuid.uuid4()}_{filename}"
     temp_filepath = os.path.join("downloads", temp_filename)
     
+    import hashlib
+    sha256 = hashlib.sha256()
+    total_bytes = 0
+    min_size = 1 * 1024 * 1024       # 1 MB
+    max_size = 300 * 1024 * 1024     # 300 MB
+    
+    # Check Content-Length header first for quick rejection
+    content_length = file.headers.get("content-length")
+    if content_length:
+        size_bytes = int(content_length)
+        if size_bytes < min_size:
+            raise HTTPException(status_code=400, detail="File size is too small. Minimum required size is 1MB.")
+        if size_bytes > max_size:
+            raise HTTPException(status_code=400, detail="File size exceeds the 300MB limit.")
+
     try:
         with open(temp_filepath, "wb") as buffer:
             while chunk := await file.read(65536):
+                total_bytes += len(chunk)
+                if total_bytes > max_size:
+                    raise HTTPException(status_code=400, detail="File size exceeds the 300MB limit.")
                 buffer.write(chunk)
+                sha256.update(chunk)
+                
+        if total_bytes < min_size:
+            raise HTTPException(status_code=400, detail="File size is too small. Minimum required size is 1MB.")
+    except HTTPException:
+        if os.path.exists(temp_filepath):
+            try:
+                os.remove(temp_filepath)
+            except Exception:
+                pass
+        raise
     except Exception as e:
         if os.path.exists(temp_filepath):
             try:
@@ -300,11 +365,13 @@ async def process_video(
                 pass
         raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
         
+    file_hash = sha256.hexdigest()
     import datetime
     
     jobs[job_id] = {
         "id": job_id,
-        "source": temp_filepath,
+        "source": filename, # User-friendly display name (original filename)
+        "file_hash": file_hash,
         "language": language,
         "status": "pending",
         "progress": 0,
@@ -315,7 +382,7 @@ async def process_video(
     }
     
     if background_tasks:
-        background_tasks.add_task(run_job_pipeline, job_id, temp_filepath, language)
+        background_tasks.add_task(run_job_pipeline, job_id, temp_filepath, file_hash, language)
     
     return {"job_id": job_id}
 

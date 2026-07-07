@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const ProcessPage = () => {
-  const { addJobToHistory, setActiveJob } = useApp();
+  const { addJobToHistory, setActiveJob, backendStatus } = useApp();
   const navigate = useNavigate();
 
   // Input states
@@ -232,6 +232,18 @@ export const ProcessPage = () => {
       setValidationError(`Unsupported format .${ext}. Please upload a file in one of the following formats: ${allowedExtensions.join(', ').toUpperCase()}`);
       return;
     }
+
+    const minSize = 1 * 1024 * 1024; // 1 MB
+    const maxSize = 300 * 1024 * 1024; // 300 MB
+    if (file.size < minSize) {
+      setValidationError("File size is too small. Please upload a file between 1MB and 300MB.");
+      return;
+    }
+    if (file.size > maxSize) {
+      setValidationError("File size exceeds 300MB. Please upload a file between 1MB and 300MB.");
+      return;
+    }
+
     setValidationError(null);
     setSelectedFile(file);
   };
@@ -483,7 +495,13 @@ export const ProcessPage = () => {
                     Live Job Pipeline Tracker
                   </h2>
                 </div>
-                <ConnectionStatusBadge status={sseStatus} />
+                <ConnectionStatusBadge status={
+                  backendStatus === 'WAKING_UP' 
+                    ? 'CONNECTING' 
+                    : (sseStatus === 'CONNECTING' || sseStatus === 'ERROR') 
+                      ? sseStatus 
+                      : 'CONNECTED'
+                } />
               </div>
 
               {/* Progress Statistics Panel Grid */}
