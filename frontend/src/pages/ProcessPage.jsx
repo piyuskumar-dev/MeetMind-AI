@@ -73,16 +73,19 @@ export const ProcessPage = () => {
   useEffect(() => { languageRef.current = language; }, [language]);
 
   const eventListeners = useMemo(() => ({
-    processing_started: () => {
+    processing_started: (data) => {
+      console.log("[ProcessPage] event: processing_started", data);
       setProgress(SSE_PROGRESS_MAP.processing_started);
       setCurrentStage('audio');
       addLog('🎬 Pipeline process initialized. Creating background execution context…', 'info');
     },
-    audio_extraction_started: () => {
+    audio_extraction_started: (data) => {
+      console.log("[ProcessPage] event: audio_extraction_started", data);
       setProgress(SSE_PROGRESS_MAP.audio_extraction_started);
       addLog('🔊 Extracting audio stream and normalising parameters…', 'info');
     },
     audio_extracted: (data) => {
+      console.log("[ProcessPage] event: audio_extracted", data);
       setProgress(SSE_PROGRESS_MAP.audio_extracted);
       setCurrentStage('transcription');
       const c = data?.chunks_count ?? 0;
@@ -93,44 +96,53 @@ export const ProcessPage = () => {
       addLog(`⏳ Estimated completion countdown: ~${est}s remaining.`, 'info');
     },
     transcribing: (data) => {
+      console.log("[ProcessPage] event: transcribing", data);
       setProgress(data?.progress ?? SSE_PROGRESS_MAP.transcribing);
       const msg = data?.chunk
         ? `Decoding audio segment ${data.chunk} of ${data.total_chunks} [Gemini STT]…`
         : 'Spawning Gemini STT process…';
       addLog(`📝 ${msg}`, 'info');
     },
-    transcription_completed: () => {
+    transcription_completed: (data) => {
+      console.log("[ProcessPage] event: transcription_completed", data);
       setProgress(SSE_PROGRESS_MAP.transcription_completed);
       setCurrentStage('summarization');
       addLog('✅ Gemini transcription complete. Transcript compiled successfully.', 'success');
     },
-    generating_title: () => {
+    generating_title: (data) => {
+      console.log("[ProcessPage] event: generating_title", data);
       setProgress(SSE_PROGRESS_MAP.generating_title);
       addLog('🏷️ Title extractor running — querying title representations…', 'info');
     },
-    generating_summary: () => {
+    generating_summary: (data) => {
+      console.log("[ProcessPage] event: generating_summary", data);
       setProgress(SSE_PROGRESS_MAP.generating_summary);
       addLog('📋 Running consolidated AI meeting analysis…', 'info');
     },
-    extracting_action_items: () => {
+    extracting_action_items: (data) => {
+      console.log("[ProcessPage] event: extracting_action_items", data);
       setProgress(SSE_PROGRESS_MAP.extracting_action_items);
       setCurrentStage('extraction');
       addLog('🔎 Parsing meeting contexts for actionable items, owners, and dates…', 'info');
     },
-    extracting_decisions: () => {
+    extracting_decisions: (data) => {
+      console.log("[ProcessPage] event: extracting_decisions", data);
       setProgress(SSE_PROGRESS_MAP.extracting_decisions);
       addLog('🔑 Parsing contexts for finalized assertions and core decisions…', 'info');
     },
-    extracting_questions: () => {
+    extracting_questions: (data) => {
+      console.log("[ProcessPage] event: extracting_questions", data);
       setProgress(SSE_PROGRESS_MAP.extracting_questions);
       addLog('❓ Scanning open threads and follow-up queries…', 'info');
     },
-    building_rag: () => {
+    building_rag: (data) => {
+      console.log("[ProcessPage] event: building_rag", data);
       setProgress(SSE_PROGRESS_MAP.building_rag);
       setCurrentStage('rag');
       addLog('🧠 Computing sentence embeddings and building indexing structures in Chroma DB…', 'info');
     },
-    error: (data) => {
+    job_failed: (data) => {
+      console.error("[ProcessPage] event: job_failed", data);
       const message = data?.message || 'Unknown pipeline error';
       setPipelineError(message);
       addLog(`❌ Job execution failed: ${message}`, 'error');
@@ -140,6 +152,7 @@ export const ProcessPage = () => {
   // onComplete fires from the hook once it sees a `completed` event; the
   // hook itself has already closed the EventSource. We persist + navigate.
   const onComplete = useCallback((data) => {
+    console.log("[ProcessPage] event: completed", data);
     setProgress(100);
     setEstCompletionTime(0);
     addLog('🎉 Pipeline analysis successfully finished! Saving results to local cache…', 'success');

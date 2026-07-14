@@ -81,11 +81,13 @@ export const useSSE = (url, options = {}) => {
 
     completedRef.current = false;
     setStatus('CONNECTING');
+    console.log(`[useSSE] Connecting to: ${url}`);
 
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
     es.onopen = () => {
+      console.log(`[useSSE] Connection opened successfully to: ${url}`);
       setStatus('CONNECTED');
       setError(null);
       retryCountRef.current = 0;
@@ -93,6 +95,7 @@ export const useSSE = (url, options = {}) => {
     };
 
     es.onerror = (err) => {
+      console.error("[useSSE] EventSource connection closed or error occurred:", err);
       setStatus('ERROR');
       setError(err);
       onErrorRef.current?.(err);
@@ -100,6 +103,7 @@ export const useSSE = (url, options = {}) => {
       // If we've already received a completed event, an error is just the
       // server closing the stream — don't reconnect, don't retry.
       if (completedRef.current) {
+        console.log("[useSSE] Stream is already finalized (completed/failed). Gracefully cleaning up.");
         es.close();
         eventSourceRef.current = null;
         setStatus('DISCONNECTED');
@@ -110,8 +114,10 @@ export const useSSE = (url, options = {}) => {
       if (retryCountRef.current < maxRetries) {
         const delay = backoffBase * Math.pow(2, retryCountRef.current);
         retryCountRef.current += 1;
+        console.log(`[useSSE] Scheduling reconnect attempt ${retryCountRef.current}/${maxRetries} in ${delay}ms`);
         reconnectTimeoutRef.current = setTimeout(connect, delay);
       } else {
+        console.warn("[useSSE] Max reconnection retries exceeded. Terminating connection attempt.");
         eventSourceRef.current = null;
         setStatus('DISCONNECTED');
       }
@@ -120,12 +126,15 @@ export const useSSE = (url, options = {}) => {
     const dispatch = (eventName, raw) => {
       let payload = raw;
       try { payload = JSON.parse(raw); } catch { /* keep as string */ }
-      if (eventName === 'completed' || eventName === 'error') {
+      console.log(`[useSSE] Received event [${eventName}] with payload:`, payload);
+      
+      if (eventName === 'completed' || eventName === 'job_failed') {
+        console.log(`[useSSE] Final pipeline state event [${eventName}] received. Terminating EventSource stream.`);
         if (eventName === 'completed') {
           completedRef.current = true;
           onCompleteRef.current?.(payload);
         } else {
-          completedRef.current = true; // prevent reconnect on error
+          completedRef.current = true; // prevent reconnect on job failure
         }
         es.close();
         eventSourceRef.current = null;

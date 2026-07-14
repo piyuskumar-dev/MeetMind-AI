@@ -231,7 +231,7 @@ async def run_job_pipeline(job_id: str, temp_filepath: str, file_hash: str, lang
         print(f"[Job {job_id}] Exception occurred:\n{tb}")
         job["status"] = "failed"
         job["error"] = error_msg
-        log_event("error", job["progress"], status="failed", extra_data={"message": error_msg})
+        log_event("job_failed", job["progress"], status="failed", extra_data={"message": error_msg})
         
     finally:
         # Fallback cleanups to prevent storage leaks if an exception occurred
@@ -405,10 +405,10 @@ async def stream_job(job_id: str):
                 read_index += 1
                 yield f"event: {event_data['event']}\ndata: {json.dumps(event_data['data'])}\n\n"
             
-            # Terminate only if the job has finished and the final state event (completed/error) has been yielded
+            # Terminate only if the job has finished and the final state event (completed/job_failed) has been yielded
             if job["status"] in ["completed", "failed"]:
                 event_names = [e["event"] for e in job["events"]]
-                if "completed" in event_names or "error" in event_names:
+                if "completed" in event_names or "job_failed" in event_names:
                     break
                 
             await asyncio.sleep(0.5)
