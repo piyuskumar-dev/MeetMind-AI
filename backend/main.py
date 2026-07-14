@@ -409,6 +409,8 @@ async def stream_job(job_id: str):
             if job["status"] in ["completed", "failed"]:
                 event_names = [e["event"] for e in job["events"]]
                 if "completed" in event_names or "job_failed" in event_names:
+                    # Give the client a moment to receive the event and close the connection from their end
+                    await asyncio.sleep(2.0)
                     break
                 
             await asyncio.sleep(0.5)

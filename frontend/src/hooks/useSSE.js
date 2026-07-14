@@ -162,6 +162,9 @@ export const useSSE = (url, options = {}) => {
         es.addEventListener(eventName, (event) => dispatch(eventName, event.data));
       });
     }
+    
+    // Register completed event listener explicitly to ensure the final payload is parsed
+    es.addEventListener('completed', (event) => dispatch('completed', event.data));
   }, [url, maxRetries, backoffBase]);
 
   useEffect(() => {
