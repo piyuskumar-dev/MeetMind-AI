@@ -35,7 +35,7 @@ print("Fastapi started. Listening for requests on http://localhost:8000")
 # Enable CORS for frontend development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the frontend domain
+    allow_origins=['https://meet-mind-ai-py.vercel.app', 'http://localhost:5173'],  # In production, specify the frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,10 +101,9 @@ async def run_job_pipeline(job_id: str, temp_filepath: str, file_hash: str, lang
             # Index/Verify vector DB in background if not present
             try:
                 vector_store = load_vector_store()
-                existing = vector_store.get(where={"job_id": job_id})
-                if not existing or len(existing.get("ids", [])) == 0:
+                if job_id not in vector_store.data or not vector_store.data[job_id]:
                     print(f"[Job {job_id}] Re-indexing transcript chunks in background...")
-                    build_vector_store(cached_job["transcript"], job_id)
+                    await asyncio.to_thread(build_vector_store, cached_job["transcript"], job_id)
             except Exception as e:
                 print(f"[Job {job_id}] Cache vector DB validation issue: {e}")
 
@@ -406,9 +405,11 @@ async def stream_job(job_id: str):
                 read_index += 1
                 yield f"event: {event_data['event']}\ndata: {json.dumps(event_data['data'])}\n\n"
             
-            # If completed or failed, we can terminate the stream
+            # Terminate only if the job has finished and the final state event (completed/error) has been yielded
             if job["status"] in ["completed", "failed"]:
-                break
+                event_names = [e["event"] for e in job["events"]]
+                if "completed" in event_names or "error" in event_names:
+                    break
                 
             await asyncio.sleep(0.5)
 

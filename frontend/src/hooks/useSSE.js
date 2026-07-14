@@ -120,10 +120,13 @@ export const useSSE = (url, options = {}) => {
     const dispatch = (eventName, raw) => {
       let payload = raw;
       try { payload = JSON.parse(raw); } catch { /* keep as string */ }
-      if (eventName === 'completed') {
-        completedRef.current = true;
-        onCompleteRef.current?.(payload);
-        // Honor the brief: gracefully terminate on completed.
+      if (eventName === 'completed' || eventName === 'error') {
+        if (eventName === 'completed') {
+          completedRef.current = true;
+          onCompleteRef.current?.(payload);
+        } else {
+          completedRef.current = true; // prevent reconnect on error
+        }
         es.close();
         eventSourceRef.current = null;
         setStatus('DISCONNECTED');

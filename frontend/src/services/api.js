@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000' || 'https://meetmind-ai-hzxs.onrender.com' || 'https://meetmind-ai-hzxs.onrender.com/';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
