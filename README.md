@@ -37,7 +37,8 @@ Designed with a modern **Server-Sent Events (SSE)** architecture, the frontend s
 - **FastAPI** (High-performance, asynchronous web server framework in Python)
 - **LangChain** (LLM flow orchestrator & retrieval pipelines)
 - **SimpleVectorStore** (Custom persistent Pickle + Cosine Similarity Vector Database)
-- **Gemini 2.5 Flash** (Used for STT and consolidated meeting analysis via Google GenAI SDK)
+- **Gemini 3.1 Flash-Lite**: Used for fast, high-quality audio Speech-to-Text (STT) transcription via the Google GenAI SDK.
+- **Gemini 2.5 Flash** (or custom configured model): Used for consolidated meeting analysis and RAG conversational chat, loaded via LangChain.
 - **Uvicorn** (Asynchronous ASGI server)
 - **ffmpeg** (System utility for audio transcoding and segment splitting)
 

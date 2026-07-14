@@ -1,113 +1,129 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Video, Trash2, ArrowLeft, MessageSquare, ListTodo, FileText, X } from 'lucide-react';
+import { Video, Trash2, MessageSquare, X, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const Sidebar = ({ 
-  isDashboard = false, 
-  onSelectJob = null, 
+const formatDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+export const Sidebar = ({
+  isDashboard = false,
+  onSelectJob = null,
   activeJobId = null,
   mobileOpen = false,
-  onCloseMobile = null
+  onCloseMobile = null,
 }) => {
   const { jobHistory, removeJobFromHistory } = useApp();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleJobClick = (job) => {
-    if (onSelectJob) {
-      onSelectJob(job);
-    } else {
-      navigate('/results', { state: { job } });
-    }
-    if (onCloseMobile) onCloseMobile();
+    onSelectJob ? onSelectJob(job) : navigate('/results', { state: { job } });
+    onCloseMobile?.();
   };
 
-  const handleChatClick = (job) => {
+  const handleChatClick = (job, e) => {
+    e.stopPropagation();
     navigate('/chat', { state: { job } });
-    if (onCloseMobile) onCloseMobile();
+    onCloseMobile?.();
   };
 
   const renderContent = (isMobile = false) => (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="font-syne text-md font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          Analysis History
-        </h2>
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <span className="text-xs bg-accent/10 text-accent font-semibold px-2 py-0.5 rounded-full">
+          <History className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
+          <h2 className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+            Analysis History
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-300">
             {jobHistory.length}
           </span>
           {isMobile && (
-            <button 
+            <button
               onClick={onCloseMobile}
-              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#161622] text-gray-400 hover:text-gray-600 dark:hover:text-white"
+              className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+              aria-label="Close sidebar"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto space-y-2 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-2 pr-1 -mr-1">
         <AnimatePresence initial={false}>
           {jobHistory.length === 0 ? (
-            <div className="text-center py-8 px-4 rounded-xl border border-dashed border-border-light dark:border-border-dark">
-              <Video className="w-8 h-8 text-gray-400 mx-auto mb-2 opacity-50" />
-              <p className="text-xs text-gray-500 dark:text-gray-400">No analyzed videos yet. Go start a job!</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-10 px-4 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-800"
+            >
+              <Video className="w-7 h-7 text-zinc-400 mx-auto mb-2" />
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                No analyzed videos yet. Start a job to populate history.
+              </p>
+            </motion.div>
           ) : (
             jobHistory.map((job) => {
               const isSelected = activeJobId === job.id;
               return (
-                <motion.div
+                <motion.button
                   key={job.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`group relative rounded-xl border p-3 cursor-pointer transition-all duration-200 ${
-                    isSelected
-                      ? 'border-accent bg-accent/5'
-                      : 'border-border-light dark:border-border-dark hover:border-gray-400 dark:hover:border-gray-600 bg-gray-50/50 dark:bg-[#111118]/40'
-                  }`}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
                   onClick={() => handleJobClick(job)}
+                  className={`group relative w-full text-left rounded-xl border p-3 transition-colors ${
+                    isSelected
+                      ? 'border-violet-500/60 bg-violet-500/10 dark:bg-violet-500/5'
+                      : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/30'
+                  }`}
                 >
-                  <div className="pr-8">
-                    <h3 className="font-semibold text-sm line-clamp-1 text-gray-900 dark:text-white" title={job.result?.title || 'Job Output'}>
-                      {job.result?.title || 'Processing Job'}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate font-mono text-[10px]">
-                      Source: {job.source}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      <span className="text-[10px] bg-accent-cyan/15 text-accent-cyan px-2 py-0.5 rounded font-mono capitalize">
-                        {job.language}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleChatClick(job);
-                        }}
-                        className="text-[10px] bg-accent/15 text-accent hover:bg-accent/25 px-2 py-0.5 rounded font-medium flex items-center gap-1 transition-colors"
-                      >
-                        <MessageSquare className="w-3 h-3" />
-                        Chat
-                      </button>
-                    </div>
+                  <h3 className="font-semibold text-sm line-clamp-1 text-zinc-900 dark:text-zinc-100" title={job.result?.title || 'Job Output'}>
+                    {job.result?.title || 'Processing Job'}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-500 mt-1 truncate font-mono">
+                    {job.source}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2.5">
+                    <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 capitalize">
+                      {job.language}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 font-mono">
+                      {formatDate(job.timestamp)}
+                    </span>
+                    <span className="flex-1" />
+                    <span
+                      role="button"
+                      onClick={(e) => handleChatClick(job, e)}
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-600 dark:text-violet-300 flex items-center gap-1 hover:bg-violet-500/25 transition-colors cursor-pointer"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      Chat
+                    </span>
                   </div>
 
-                  <button
+                  <span
+                    role="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       removeJobFromHistory(job.id);
                     }}
-                    className="absolute top-3 right-3 text-gray-400 hover:text-accent-danger opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-100 dark:hover:bg-[#161622] bg-transparent"
+                    className="absolute top-2.5 right-2.5 text-zinc-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     title="Delete history item"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </motion.div>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </span>
+                </motion.button>
               );
             })
           )}
@@ -118,30 +134,28 @@ export const Sidebar = ({
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside className="w-80 border-r border-border-light dark:border-border-dark bg-white dark:bg-[#111118] h-[calc(100vh-4rem)] overflow-y-auto hidden lg:flex flex-col p-4 transition-colors duration-300">
+      {/* Desktop */}
+      <aside className="w-72 xl:w-80 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 h-[calc(100vh-4rem)] overflow-hidden hidden lg:flex flex-col p-4 transition-colors duration-300">
         {renderContent(false)}
       </aside>
 
-      {/* Mobile Sidebar Overlay Drawer */}
+      {/* Mobile drawer */}
       <AnimatePresence>
         {mobileOpen && (
           <>
-            {/* Backdrop overlay */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onCloseMobile}
               className="fixed inset-0 bg-black/60 z-40 lg:hidden"
             />
-            {/* Drawer */}
             <motion.aside
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="fixed top-0 left-0 bottom-0 w-80 bg-white dark:bg-[#111118] z-50 flex flex-col p-4 shadow-2xl border-r border-border-light dark:border-border-dark lg:hidden"
+              className="fixed top-0 left-0 bottom-0 w-80 bg-white dark:bg-zinc-950 z-50 flex flex-col p-4 shadow-2xl border-r border-zinc-200 dark:border-zinc-800 lg:hidden"
             >
               {renderContent(true)}
             </motion.aside>
@@ -151,3 +165,5 @@ export const Sidebar = ({
     </>
   );
 };
+
+export default Sidebar;

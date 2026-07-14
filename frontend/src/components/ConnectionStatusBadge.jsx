@@ -1,42 +1,77 @@
 import React from 'react';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Wifi, WifiOff, RefreshCw, Coffee } from 'lucide-react';
 
-export const ConnectionStatusBadge = ({ status }) => {
-  // status can be: CONNECTED, CONNECTING, DISCONNECTED, ERROR
-  
-  if (status === 'CONNECTED') {
-    return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-success/15 text-accent-success border border-accent-success/35">
-        <span className="w-1.5 h-1.5 rounded-full bg-accent-success animate-ping"></span>
-        <Wifi className="w-3.5 h-3.5" />
-        <span>Connected</span>
-      </div>
-    );
-  }
+const PULSE = {
+  initial: { scale: 1, opacity: 1 },
+  animate: { scale: [1, 1.6, 1], opacity: [1, 0, 1] },
+  transition: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' },
+};
 
-  if (status === 'CONNECTING') {
-    return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-warning/15 text-accent-warning border border-accent-warning/35">
-        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-        <span>Connecting...</span>
-      </div>
-    );
-  }
+const variants = {
+  CONNECTED: {
+    label: 'Connected',
+    icon: Wifi,
+    dot: 'bg-emerald-400',
+    pill: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+    ring: 'bg-emerald-400',
+  },
+  WAKING_UP: {
+    label: 'Waking Up',
+    icon: Coffee,
+    dot: 'bg-amber-400',
+    pill: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    ring: 'bg-amber-400',
+  },
+  CONNECTING: {
+    label: 'Connecting…',
+    icon: RefreshCw,
+    dot: 'bg-amber-400',
+    pill: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30',
+    ring: 'bg-amber-400',
+    spin: true,
+  },
+  ERROR: {
+    label: 'Connection Lost (Retrying)',
+    icon: WifiOff,
+    dot: 'bg-rose-400',
+    pill: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30',
+    ring: 'bg-rose-400',
+  },
+  DISCONNECTED: {
+    label: 'Disconnected',
+    icon: WifiOff,
+    dot: 'bg-zinc-400',
+    pill: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30',
+    ring: 'bg-zinc-400',
+  },
+};
 
-  if (status === 'ERROR') {
-    return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-danger/15 text-accent-danger border border-accent-danger/35">
-        <WifiOff className="w-3.5 h-3.5" />
-        <span>Connection Lost (Retrying)</span>
-      </div>
-    );
-  }
+export const ConnectionStatusBadge = ({ status = 'DISCONNECTED' }) => {
+  const v = variants[status] ?? variants.DISCONNECTED;
+  const Icon = v.icon;
 
   return (
-    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-500/15 text-gray-500 border border-gray-500/35">
-      <WifiOff className="w-3.5 h-3.5" />
-      <span>Disconnected</span>
+    <div
+      role="status"
+      aria-live="polite"
+      className={`relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold border transition-colors duration-300 ${v.pill}`}
+    >
+      {/* Pulsing dot for live states. Static dot for terminal states. */}
+      {(status === 'CONNECTED' || status === 'WAKING_UP' || status === 'CONNECTING' || status === 'ERROR') && (
+        <span className="relative inline-flex w-2 h-2">
+          <motion.span
+            className={`absolute inset-0 rounded-full ${v.ring}`}
+            {...PULSE}
+          />
+          <span className={`relative inline-flex w-2 h-2 rounded-full ${v.dot}`} />
+        </span>
+      )}
+      {status === 'DISCONNECTED' && <span className={`w-2 h-2 rounded-full ${v.dot}`} />}
+      <Icon className={`w-3.5 h-3.5 ${v.spin ? 'animate-spin' : ''}`} />
+      <span>{v.label}</span>
     </div>
   );
 };
+
 export default ConnectionStatusBadge;
