@@ -12,7 +12,7 @@ Engineering and product teams (PMs, tech leads, design leads) drowning in synchr
 
 ## Product Purpose
 
-Turn a meeting recording (audio or video) into structured, queryable knowledge: title, hierarchical summary, action items with assignees and deadlines, key decisions, follow-up questions, and a transcript. Then let the team chat with that meeting specifically — no cross-talk across meetings. Success is not "user stays on the page." Success is the meeting being closed in another tab and the team acting on what was decided. Long-term: the recorded meeting is the durable artifact, the live meeting is the throwaway.
+Turn a meeting recording (audio or video) into structured, queryable knowledge: title, hierarchical summary, action items with assignees and deadlines, key decisions, follow-up questions, and a transcript. Then let the team chat with that meeting specifically through a deterministic **LangGraph StateGraph DAG** pipeline monitored with **LangSmith** observability — no cross-talk across meetings. Success is not "user stays on the page." Success is the meeting being closed in another tab and the team acting on what was decided. Long-term: the recorded meeting is the durable artifact, the live meeting is the throwaway.
 
 ## Brand Personality
 

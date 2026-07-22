@@ -8,6 +8,8 @@ Designed with a modern **Server-Sent Events (SSE)** architecture, the frontend s
 
 ## 🌟 Key Features
 
+- **LangGraph DAG Architecture**: Replaces sequential LCEL pipelines with a modular, deterministic **LangGraph StateGraph DAG** workflow (`preprocess_query` ➔ `retrieve_documents` ➔ `format_context` ➔ `generate_answer` ➔ `postprocess_response`).
+- **LangSmith Observability & Tracing**: Instruments every RAG pipeline stage with `@traceable` metrics, run metadata (`job_id`, `question`), and tagging for production debugging and latency tracking.
 - **Real-Time Pipeline Progress (SSE)**: Streams job statuses (`processing_started`, `audio_extraction_started`, `audio_extracted`, `transcribing`, `transcription_completed`, `generating_summary`, `generating_title`, `extracting_action_items`, `extracting_decisions`, `extracting_questions`, `building_rag`, `completed`) directly to the client with robust termination handlers to prevent infinite reconnection loops.
 - **Memory-Optimized Processing**: Uses `ffmpeg` as a subprocess to transcode, downsample to 16kHz mono, and segment audio files into 10-minute segments directly on disk. This completely avoids loading raw files into Python process RAM, fitting under Render's 512MB limit.
 - **Eager Asset Cleanup**: Temporary uploaded files and segments are immediately deleted as soon as their step finishes, preventing storage overflows.
@@ -17,7 +19,7 @@ Designed with a modern **Server-Sent Events (SSE)** architecture, the frontend s
 - **Isolated Vector RAG Querying**: Tags vectorized transcript chunks with a unique `job_id` and applies isolated metadata filtering, guaranteeing that chat responses contain zero cross-talk between different meetings.
 - **Context Citations & Sources**: Renders real-time citation links and transcript source snippets (with chunk index offsets) alongside streamed tokens in the Chat interface.
 - **Premium SaaS Dashboard**: High-fidelity UI using **React 19**, **Vite**, **Tailwind CSS**, and spring-animated micro-interactions powered by **Framer Motion**. Offers collapsible results, copy-to-clipboard blocks, dark/light theme toggle, and layout transitions.
-- **Backend Status Diagnostics**: Includes an automatic health diagnostic loop in AppContext that pings the backend. Shows warning banners if the backend is cold-starting (e.g. Render free tier sleep) and badges to indicate `CONNECTED` or `WAKING_UP` state.
+- **Backend Status Diagnostics**: Includes an automatic health diagnostic loop in AppContext that pings the backend `/warmup` route. Shows warning banners if the backend is cold-starting and badges to indicate `CONNECTED` or `WAKING_UP` state.
 - **Size Safeguards**: Restricts file uploads to a `1MB` to `300MB` range, enforced on both the React drag-and-drop uploader and the FastAPI endpoint.
 - **Document Exporting**: Supports client-side downloads as standard Markdown (`.md`) and compiles print-ready PDFs directly in the browser.
 
@@ -35,7 +37,9 @@ Designed with a modern **Server-Sent Events (SSE)** architecture, the frontend s
 
 ### Backend
 - **FastAPI** (High-performance, asynchronous web server framework in Python)
-- **LangChain** (LLM flow orchestrator & retrieval pipelines)
+- **LangGraph** (StateGraph DAG workflow engine for deterministic, modular RAG execution)
+- **LangSmith** (Production-grade AI tracing, run metadata monitoring, and observability platform)
+- **LangChain** (LLM flow orchestrator, prompt engineering & output parsing)
 - **SimpleVectorStore** (Custom persistent Pickle + Cosine Similarity Vector Database)
 - **Gemini 3.1 Flash-Lite**: Used for fast, high-quality audio Speech-to-Text (STT) transcription via the Google GenAI SDK.
 - **Gemini 2.5 Flash** (or custom configured model): Used for consolidated meeting analysis and RAG conversational chat, loaded via LangChain.
@@ -116,8 +120,9 @@ sequenceDiagram
 │   ├── core/                   # LLM & Vector Storage pipelines
 │   │   ├── analysis.py         # Consolidated LLM analysis generation
 │   │   ├── extractor.py        # Analysis compatibility layers
+│   │   ├── graph.py            # LangGraph StateGraph DAG definition & traceable nodes
 │   │   ├── llm.py              # Google GenAI Gemini model loader
-│   │   ├── rag_engine.py       # LangChain LCEL RAG builders and prompt engineering
+│   │   ├── rag_engine.py       # LangGraph engine wrappers & SSE streaming interfaces
 │   │   ├── summarize.py        # Analysis compatibility layers
 │   │   ├── transcriber.py      # Gemini STT transcription orchestrator
 │   │   └── vector_store.py     # Custom persistent SimpleVectorStore
@@ -263,6 +268,12 @@ MODEL=gemini-2.5-flash
 
 # API Keys
 GOOGLE_API_KEY=your-gemini-api-key-here
+
+# LangSmith Observability & Tracing Configuration
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY=your-langsmith-api-key-here
+LANGCHAIN_PROJECT="MeetMind-AI"
 ```
 
 ---

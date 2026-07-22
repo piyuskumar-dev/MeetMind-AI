@@ -5,9 +5,10 @@ import { motion } from 'framer-motion';
 const features = {
   backend: [
     ['Gemini Audio STT', 'Transcribes audio with high fidelity directly using Gemini models.'],
-    ['Chroma Database', 'Embeds split document collections for context matching.'],
-    ['LangChain', 'Connects LLM prompts to output parsers for summary extraction.'],
-    ['SSE Streaming', 'Asynchronous worker loops emit live task statuses.'],
+    ['LangGraph Workflow', 'Modular StateGraph DAG architecture orchestrating deterministic RAG steps.'],
+    ['LangSmith Observability', 'Provides deep tracing, performance monitoring, and run metadata tagging.'],
+    ['SimpleVectorStore', 'Custom persistent Pickle + Cosine Similarity Vector Database.'],
+    ['SSE Streaming', 'Asynchronous worker loops emit live task statuses and RAG tokens.'],
   ],
   frontend: [
     ['Tailwind CSS', 'Standard styling config with dark/light theme tokens.'],

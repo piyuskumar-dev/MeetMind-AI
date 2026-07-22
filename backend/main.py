@@ -18,7 +18,8 @@ from core.extractor import (
     extract_actionable_items_async, extract_key_decisions_async, extract_questions_async
 )
 from core.rag_engine import (
-    build_rag_chain, ask_question, load_rag_chain, get_rag_components, format_docs
+    build_rag_chain, ask_question, load_rag_chain, get_rag_components, format_docs,
+    run_rag_graph, stream_rag_graph_tokens
 )
 from core.vector_store import load_vector_store, build_vector_store
 from utils.cache import get_cached_job, save_job_to_cache
@@ -292,8 +293,13 @@ def run_pipeline_sync(source: str, language: str = "english"):
 
 
 @app.get("/")
+@app.get("/warmup")
+@app.get("/health")
 async def root():
-    return {"message": "AI Video Assistant is running!"}
+    return {
+        "status": "online",
+        "message": "MeetMind AI backend is warm and ready!"
+    }
 
 
 @app.post("/process")
@@ -421,39 +427,24 @@ async def stream_job(job_id: str):
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
-    POST endpoint for streaming RAG responses token-by-token.
+    POST endpoint for streaming RAG responses token-by-token powered by LangGraph.
     """
     job_id = request.job_id
     question = request.question
 
-    try:
-        retriever, llm_chain = get_rag_components(job_id)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"RAG system not initialized: {e}")
-
     async def response_generator():
-        try:
-            # 1. Retrieve the matching docs using ainvoke (async non-blocking)
-            docs = await retriever.ainvoke(question)
+        async for event in stream_rag_graph_tokens(job_id, question):
+            event_type = event.get("type")
+            data = event.get("data")
             
-            # 2. Yield the sources to the client
-            sources_data = [
-                {
-                    "chunk_index": doc.metadata.get("chunk_index", 0),
-                    "content": doc.page_content
-                }
-                for doc in docs
-            ]
-            yield f"event: sources\ndata: {json.dumps(sources_data)}\n\n"
-            
-            # 3. Stream the generation tokens from the LLM chain
-            context_str = format_docs(docs)
-            async for chunk in llm_chain.astream({"context": context_str, "question": question}):
-                yield f"data: {json.dumps({'token': chunk})}\n\n"
-                
-            yield "event: completed\ndata: {}\n\n"
-        except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            if event_type == "sources":
+                yield f"event: sources\ndata: {json.dumps(data)}\n\n"
+            elif event_type == "token":
+                yield f"data: {json.dumps({'token': data})}\n\n"
+            elif event_type == "completed":
+                yield "event: completed\ndata: {}\n\n"
+            elif event_type == "error":
+                yield f"event: error\ndata: {json.dumps({'message': str(data)})}\n\n"
 
     return StreamingResponse(response_generator(), media_type="text/event-stream")
 
@@ -461,65 +452,55 @@ async def chat_stream(request: ChatRequest):
 @app.get("/chat/stream")
 async def chat_stream_get(job_id: str = Query(...), question: str = Query(...)):
     """
-    GET version of chat streaming for standard EventSource compatibility.
+    GET version of chat streaming for standard EventSource compatibility powered by LangGraph.
     """
-    try:
-        retriever, llm_chain = get_rag_components(job_id)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"RAG system not initialized: {e}")
-
     async def response_generator():
-        try:
-            # 1. Retrieve the matching docs using ainvoke
-            docs = await retriever.ainvoke(question)
+        async for event in stream_rag_graph_tokens(job_id, question):
+            event_type = event.get("type")
+            data = event.get("data")
             
-            # 2. Yield the sources to the client
-            sources_data = [
-                {
-                    "chunk_index": doc.metadata.get("chunk_index", 0),
-                    "content": doc.page_content
-                }
-                for doc in docs
-            ]
-            yield f"event: sources\ndata: {json.dumps(sources_data)}\n\n"
-            
-            # 3. Stream the generation tokens
-            context_str = format_docs(docs)
-            async for chunk in llm_chain.astream({"context": context_str, "question": question}):
-                yield f"data: {json.dumps({'token': chunk})}\n\n"
-                
-            yield "event: completed\ndata: {}\n\n"
-        except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            if event_type == "sources":
+                yield f"event: sources\ndata: {json.dumps(data)}\n\n"
+            elif event_type == "token":
+                yield f"data: {json.dumps({'token': data})}\n\n"
+            elif event_type == "completed":
+                yield "event: completed\ndata: {}\n\n"
+            elif event_type == "error":
+                yield f"event: error\ndata: {json.dumps({'message': str(data)})}\n\n"
 
     return StreamingResponse(response_generator(), media_type="text/event-stream")
 
 
 if __name__ == "__main__":
-    # CLI entry point
     import sys
-    source = input("Enter local file path: ").strip()
-    language = input("Language (english/hinglish): ").strip() or "english"
-    result = run_pipeline_sync(source, language)
+    if "--cli" in sys.argv:
+        # CLI entry point
+        source = input("Enter local file path: ").strip()
+        language = input("Language (english/hinglish): ").strip() or "english"
+        result = run_pipeline_sync(source, language)
 
-    print("\n" + "=" * 60)
-    print(f"📌 Title: {result['title']}")
-    print(f"\n📋 Summary:\n{result['summary']}")
-    print(f"\n✅ Action Items:\n{result['action_items']}")
-    print(f"\n🔑 Key Decisions:\n{result['decisions']}")
-    print(f"\n❓ Open Questions:\n{result['questions']}")
-    print("=" * 60)
+        print("\n" + "=" * 60)
+        print(f"📌 Title: {result['title']}")
+        print(f"\n📋 Summary:\n{result['summary']}")
+        print(f"\n✅ Action Items:\n{result['action_items']}")
+        print(f"\n🔑 Key Decisions:\n{result['decisions']}")
+        print(f"\n❓ Open Questions:\n{result['questions']}")
+        print("=" * 60)
 
-    # CLI Chat loop
-    print("\n💬 Chat with your meeting (type 'exit' to quit)\n")
-    job_id = "cli_sync"
-    retriever, llm_chain = get_rag_components(job_id)
-    while True:
-        question = input("You: ").strip()
-        if question.lower() in ["exit", "quit", "q"]:
-            print("👋 Goodbye!")
-            break
-        if not question:
-            continue
-        answer = ask_question(retriever, question, llm_chain)
-        print(f"\n🤖 Assistant: {answer}\n")
+        # CLI Chat loop
+        print("\n💬 Chat with your meeting (type 'exit' to quit)\n")
+        job_id = "cli_sync"
+        retriever, llm_chain = get_rag_components(job_id)
+        while True:
+            question = input("You: ").strip()
+            if question.lower() in ["exit", "quit", "q"]:
+                print("👋 Goodbye!")
+                break
+            if not question:
+                continue
+            answer = ask_question(retriever, question, llm_chain)
+            print(f"\n🤖 Assistant: {answer}\n")
+    else:
+        import uvicorn
+        print("🚀 Starting FastAPI backend server on http://localhost:8000 ...")
+        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

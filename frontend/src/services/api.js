@@ -1,19 +1,28 @@
 import axios from 'axios';
 
 // Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000' || 'https://meetmind-ai-hzxs.onrender.com' || 'https://meetmind-ai-hzxs.onrender.com/';
+const envUrl = import.meta.env.VITE_API_URL;
+const API_BASE_URL = (envUrl && typeof envUrl === 'string' && envUrl.trim())
+  ? envUrl.trim().replace(/\/+$/, '')
+  : 'http://localhost:8000';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 8000,
 });
 
 export const api = {
-  // Test connection
+  // Test connection & warmup backend
   getRoot: async () => {
-    const res = await client.get('/');
+    const res = await client.get('/warmup');
+    return res.data;
+  },
+
+  warmup: async () => {
+    const res = await client.get('/warmup');
     return res.data;
   },
 
@@ -27,6 +36,7 @@ export const api = {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress,
+      timeout: 300000, // 5 min timeout for large file uploads
     });
     return res.data; // returns { job_id }
   },
@@ -34,3 +44,4 @@ export const api = {
   // Base API URL utility
   baseUrl: API_BASE_URL,
 };
+

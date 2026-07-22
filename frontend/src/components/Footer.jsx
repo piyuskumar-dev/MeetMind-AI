@@ -7,7 +7,7 @@ export const Footer = () => {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
           <Code className="w-4 h-4 text-violet-500" />
-          <span>Built with React 19, FastAPI, LangChain, and Gemini.</span>
+          <span>Built with React 19, FastAPI, LangGraph, LangSmith, LangChain, and Gemini.</span>
         </div>
         <div className="text-xs text-zinc-400 dark:text-zinc-500">
           © {new Date().getFullYear()} MeetMind AI · Open source under MIT License.

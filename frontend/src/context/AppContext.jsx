@@ -3,8 +3,8 @@ import { api } from '../services/api';
 
 // Health check cadence. Aggressive while WAKING_UP (Render free tier cold starts
 // can take 30–60s), relaxed once ONLINE so we don't hammer the server.
-const PING_INTERVAL_MS = 4000;
-const PING_INTERVAL_RELAXED_MS = 30000;
+const PING_INTERVAL_MS = 1500;
+const PING_INTERVAL_RELAXED_MS = 15000;
 
 const AppContext = createContext(null);
 
