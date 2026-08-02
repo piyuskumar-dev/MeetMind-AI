@@ -33,6 +33,12 @@ Calm, precise, considered. The product earns trust by being quieter than the mee
 5. **Two themes, one bar.** Light and dark are equally weighted and both meet AA. Neither is the "default" in spirit. The system does not lean into either as identity.
 6. **Density follows the surface.** Marketing-adjacent surfaces (Home, About) get breathing room and considered prose. Working surfaces (Process, Results, Chat) get dense, scannable, tool-like layouts. The system stays coherent; the registers do not.
 
+## Engine & Observability Standards
+
+1. **LangGraph Deterministic Workflow**: RAG execution follows a clean Directed Acyclic Graph (DAG) state model (`preprocess_query` ➔ `retrieve_documents` ➔ `format_context` ➔ `generate_answer` ➔ `postprocess_response`), keeping business logic modular, strictly scoped, and testable.
+2. **LangSmith Production Observability**: Every pipeline step is instrumented with `@traceable` metrics, tags, and run metadata (`job_id`, `question`) for complete execution transparency, latency tracing, and debugging.
+3. **Fast Warmup & Health Diagnostics**: Dedicated health routes (`/warmup`, `/health`) paired with intelligent ping loops ensure instantaneous backend status feedback and eliminate cold-start confusion.
+
 ## Accessibility & Inclusion
 
 WCAG 2.1 AA across both themes, treated as a deliverable not an audit step. Concrete commitments:
@@ -44,3 +50,4 @@ WCAG 2.1 AA across both themes, treated as a deliverable not an audit step. Conc
 - Information never conveyed by color alone. The pipeline status badge pairs color with a label and an icon.
 - `prefers-reduced-motion: reduce` respected everywhere. Springs, blurs, and stagger reveals become crossfades or instant transitions.
 - Color is not the only signal for the action items table status, the SSE state, or the theme toggle.
+

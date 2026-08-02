@@ -1,70 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
-
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
 @layer base {
   body {
-    @apply font-sans transition-colors duration-300 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100;
+    @apply font-sans antialiased bg-[#FAFAFA] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors duration-200 selection:bg-indigo-500/15 selection:text-indigo-600 dark:selection:text-indigo-400;
   }
 }
 
-/* --- Premium brand utilities (used sparingly) --- */
-
-.gradient-accent {
-  background: linear-gradient(135deg, #7c3aed 0%, #c026d3 50%, #06b6d4 100%);
+/* --- SaaS Card utility --- */
+.saas-card {
+  @apply bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800/90 rounded-xl shadow-subtle transition-all duration-200;
 }
 
-.premium-card {
-  @apply bg-white/80 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm transition-colors duration-300;
+.saas-card-elevated {
+  @apply bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800/90 rounded-xl shadow-card transition-all duration-200 hover:shadow-elevated;
 }
 
-/* --- Scrollbar (slim, violet thumb) --- */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* --- Subtle neutral scrollbar --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.18); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.45); }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
 
-/* --- Streaming cursor (used by Markdown streaming output) --- */
+/* --- Streaming cursor --- */
 .streaming-cursor::after {
   content: '';
   display: inline-block;
-  width: 6px;
-  height: 15px;
-  background-color: #7c3aed;
-  margin-left: 4px;
+  width: 2px;
+  height: 14px;
+  background-color: #4F46E5;
+  margin-left: 3px;
   vertical-align: middle;
   animation: blink 1s step-end infinite;
 }
-@keyframes blink { from, to { background-color: transparent; } 50% { background-color: #7c3aed; } }
-
-/* --- Ambient glow blobs (decorative, used on hero / dashboard only) --- */
-.ambient-glow {
-  position: absolute;
-  width: 300px;
-  height: 300px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.10) 0%, rgba(124, 58, 237, 0) 70%);
-  pointer-events: none;
-  filter: blur(40px);
-}
-.ambient-glow-cyan {
-  position: absolute;
-  width: 250px;
-  height: 250px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(6, 182, 212, 0) 70%);
-  pointer-events: none;
-  filter: blur(30px);
+.dark .streaming-cursor::after {
+  background-color: #818CF8;
 }
 
-/* --- Code block container (used by Markdown) --- */
+@keyframes blink { 
+  from, to { opacity: 0; } 
+  50% { opacity: 1; } 
+}
+
+/* --- Skeleton shimmer loader --- */
+.skeleton-loader {
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.6) 25%, rgba(241, 245, 249, 0.9) 37%, rgba(226, 232, 240, 0.6) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+.dark .skeleton-loader {
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.5) 25%, rgba(51, 65, 85, 0.8) 37%, rgba(30, 41, 59, 0.5) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* --- Code block styling --- */
 .code-container {
-  @apply font-mono text-xs p-4 rounded-xl overflow-x-auto bg-zinc-950 border border-zinc-800 text-zinc-300;
+  @apply font-mono text-xs p-4 rounded-lg overflow-x-auto bg-slate-950 border border-slate-800 text-slate-300;
 }
 
-/* --- Reduced motion: kill the streaming cursor blink + spring animations --- */
+/* --- Reduced motion support --- */
 @media (prefers-reduced-motion: reduce) {
-  .streaming-cursor::after { animation: none; background-color: #7c3aed; }
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  .streaming-cursor::after { animation: none; opacity: 1; }
+  .skeleton-loader { animation: none; }
+  *, *::before, *::after { 
+    animation-duration: 0.01ms !important; 
+    animation-iteration-count: 1 !important; 
+    transition-duration: 0.01ms !important; 
+  }
 }
+

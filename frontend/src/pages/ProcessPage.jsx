@@ -7,7 +7,7 @@ import { ConnectionStatusBadge } from '../components/ConnectionStatusBadge';
 import {
   FileAudio, Loader2, CheckCircle2,
   Clock, AlertTriangle, Terminal,
-  Timer, BarChart3, Database, Upload, X, Video, Sparkles,
+  Timer, BarChart3, Database, Upload, X, Video, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -25,11 +25,11 @@ const MIN_BYTES = 1 * 1024 * 1024;
 const MAX_BYTES = 300 * 1024 * 1024;
 
 const STAGES = [
-  { key: 'audio', label: 'Audio Processing', description: 'Extracting and transcoding media into mono WAV streams', range: [5, 25] },
-  { key: 'transcription', label: 'Gemini Transcription', description: 'Running neural speech-to-text decoding via Gemini API', range: [30, 50] },
-  { key: 'summarization', label: 'AI Title & Summaries', description: 'Creating executive summaries using hierarchical LLM maps', range: [60, 70] },
-  { key: 'extraction', label: 'Insight Extraction', description: 'Parsing tasks, responsibilities, deadlines, and core decisions', range: [80, 90] },
-  { key: 'rag', label: 'RAG Indexing', description: 'Generating vector embeddings and writing collections to Chroma DB', range: [95, 100] },
+  { key: 'audio', label: 'Audio Preprocessing', description: 'Extracting and transcoding media into normalized WAV audio stream', range: [5, 25] },
+  { key: 'transcription', label: 'Neural Speech-to-Text', description: 'Decoding spoken content with Gemini multi-lingual model', range: [30, 50] },
+  { key: 'summarization', label: 'Executive Summarization', description: 'Structuring main discussions into hierarchical summaries', range: [60, 70] },
+  { key: 'extraction', label: 'Action & Decision Mining', description: 'Identifying owners, deliverables, deadlines, and core assertions', range: [80, 90] },
+  { key: 'rag', label: 'Vector Knowledge Indexing', description: 'Computing embeddings and indexing chunks into vector store', range: [95, 100] },
 ];
 
 const isVideoFile = (name) => ['mp4', 'mov'].includes((name.split('.').pop() || '').toLowerCase());
@@ -60,10 +60,6 @@ export const ProcessPage = () => {
     setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString(), message, type }]);
   }, []);
 
-  // --- SSE event listeners ---------------------------------------------------
-  // Handlers close over the *current* jobId + selectedFile via ref so the
-  // listener map is stable across re-renders and the SSE hook can keep using
-  // its own callback ref pattern.
   const jobIdRef = useRef(null);
   const selectedFileRef = useRef(null);
   const languageRef = useRef('english');
@@ -77,12 +73,12 @@ export const ProcessPage = () => {
       console.log("[ProcessPage] event: processing_started", data);
       setProgress(SSE_PROGRESS_MAP.processing_started);
       setCurrentStage('audio');
-      addLog('🎬 Pipeline process initialized. Creating background execution context…', 'info');
+      addLog('Pipeline process initialized. Spawning execution context…', 'info');
     },
     audio_extraction_started: (data) => {
       console.log("[ProcessPage] event: audio_extraction_started", data);
       setProgress(SSE_PROGRESS_MAP.audio_extraction_started);
-      addLog('🔊 Extracting audio stream and normalising parameters…', 'info');
+      addLog('Extracting audio track & normalizing audio parameters…', 'info');
     },
     audio_extracted: (data) => {
       console.log("[ProcessPage] event: audio_extracted", data);
@@ -92,70 +88,68 @@ export const ProcessPage = () => {
       setChunksCount(c);
       const est = Math.max(c * 4 + 8, 12);
       setEstCompletionTime(est);
-      addLog(`✅ Audio extraction complete. Partitioned media into ${c} chunk(s) for decoding.`, 'success');
-      addLog(`⏳ Estimated completion countdown: ~${est}s remaining.`, 'info');
+      addLog(`Audio extraction complete (${c} chunk segment(s)).`, 'success');
+      addLog(`Estimated processing time remaining: ~${est}s.`, 'info');
     },
     transcribing: (data) => {
       console.log("[ProcessPage] event: transcribing", data);
       setProgress(data?.progress ?? SSE_PROGRESS_MAP.transcribing);
       const msg = data?.chunk
-        ? `Decoding audio segment ${data.chunk} of ${data.total_chunks} [Gemini STT]…`
-        : 'Spawning Gemini STT process…';
-      addLog(`📝 ${msg}`, 'info');
+        ? `Transcribing segment ${data.chunk} of ${data.total_chunks} [Gemini STT]…`
+        : 'Running Gemini speech-to-text pipeline…';
+      addLog(msg, 'info');
     },
     transcription_completed: (data) => {
       console.log("[ProcessPage] event: transcription_completed", data);
       setProgress(SSE_PROGRESS_MAP.transcription_completed);
       setCurrentStage('summarization');
-      addLog('✅ Gemini transcription complete. Transcript compiled successfully.', 'success');
+      addLog('Speech transcription complete. Transcript compiled.', 'success');
     },
     generating_title: (data) => {
       console.log("[ProcessPage] event: generating_title", data);
       setProgress(SSE_PROGRESS_MAP.generating_title);
-      addLog('🏷️ Title extractor running — querying title representations…', 'info');
+      addLog('Generating descriptive meeting title…', 'info');
     },
     generating_summary: (data) => {
       console.log("[ProcessPage] event: generating_summary", data);
       setProgress(SSE_PROGRESS_MAP.generating_summary);
-      addLog('📋 Running consolidated AI meeting analysis…', 'info');
+      addLog('Generating executive meeting summary…', 'info');
     },
     extracting_action_items: (data) => {
       console.log("[ProcessPage] event: extracting_action_items", data);
       setProgress(SSE_PROGRESS_MAP.extracting_action_items);
       setCurrentStage('extraction');
-      addLog('🔎 Parsing meeting contexts for actionable items, owners, and dates…', 'info');
+      addLog('Extracting actionable tasks, owners, and deadlines…', 'info');
     },
     extracting_decisions: (data) => {
       console.log("[ProcessPage] event: extracting_decisions", data);
       setProgress(SSE_PROGRESS_MAP.extracting_decisions);
-      addLog('🔑 Parsing contexts for finalized assertions and core decisions…', 'info');
+      addLog('Parsing key decisions and explicit commitments…', 'info');
     },
     extracting_questions: (data) => {
       console.log("[ProcessPage] event: extracting_questions", data);
       setProgress(SSE_PROGRESS_MAP.extracting_questions);
-      addLog('❓ Scanning open threads and follow-up queries…', 'info');
+      addLog('Scanning unresolved topics and open questions…', 'info');
     },
     building_rag: (data) => {
       console.log("[ProcessPage] event: building_rag", data);
       setProgress(SSE_PROGRESS_MAP.building_rag);
       setCurrentStage('rag');
-      addLog('🧠 Computing sentence embeddings and building indexing structures in Chroma DB…', 'info');
+      addLog('Building vector index embeddings in vector database…', 'info');
     },
     job_failed: (data) => {
       console.error("[ProcessPage] event: job_failed", data);
-      const message = data?.message || 'Unknown pipeline error';
+      const message = data?.message || 'Unknown pipeline execution failure';
       setPipelineError(message);
-      addLog(`❌ Job execution failed: ${message}`, 'error');
+      addLog(`Job execution failed: ${message}`, 'error');
     },
   }), [addLog]);
 
-  // onComplete fires from the hook once it sees a `completed` event; the
-  // hook itself has already closed the EventSource. We persist + navigate.
   const onComplete = useCallback((data) => {
     console.log("[ProcessPage] event: completed", data);
     setProgress(100);
     setEstCompletionTime(0);
-    addLog('🎉 Pipeline analysis successfully finished! Saving results to local cache…', 'success');
+    addLog('Analysis finished successfully. Loading workspace dashboard…', 'success');
 
     const completedJob = {
       id: jobIdRef.current,
@@ -169,7 +163,7 @@ export const ProcessPage = () => {
     addJobToHistory(completedJob);
     setActiveJob(completedJob);
 
-    setTimeout(() => navigate('/results', { state: { job: completedJob } }), 1500);
+    setTimeout(() => navigate('/results', { state: { job: completedJob } }), 1200);
   }, [addJobToHistory, setActiveJob, navigate, addLog]);
 
   const { status: sseStatus } = useSSE(
@@ -177,14 +171,12 @@ export const ProcessPage = () => {
     { eventListeners, onComplete }
   );
 
-  // Auto-scroll logs terminal.
   useEffect(() => {
     if (terminalEndRef.current) {
       terminalEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [logs]);
 
-  // Elapsed + countdown timers.
   useEffect(() => {
     if (!jobId || progress >= 100 || pipelineError) return undefined;
     const elapsedTimer = setInterval(() => setTimeElapsed((t) => t + 1), 1000);
@@ -199,27 +191,25 @@ export const ProcessPage = () => {
     return () => clearInterval(countdownTimer);
   }, [jobId, progress, pipelineError, estCompletionTime]);
 
-  // File selection.
   const handleFileSelection = (file) => {
     if (!file) return;
     const ext = (file.name.split('.').pop() || '').toLowerCase();
     if (!ALLOWED_EXT.includes(ext)) {
-      setValidationError(`Unsupported format .${ext}. Allowed: ${ALLOWED_EXT.join(', ').toUpperCase()}`);
+      setValidationError(`Unsupported format .${ext}. Allowed formats: ${ALLOWED_EXT.join(', ').toUpperCase()}`);
       return;
     }
     if (file.size < MIN_BYTES) {
-      setValidationError('File is too small. Please upload a file between 1MB and 300MB.');
+      setValidationError('File size too small. Please select a file between 1MB and 300MB.');
       return;
     }
     if (file.size > MAX_BYTES) {
-      setValidationError('File exceeds 300MB. Please upload a file between 1MB and 300MB.');
+      setValidationError('File exceeds 300MB limit. Please select a file under 300MB.');
       return;
     }
     setValidationError(null);
     setSelectedFile(file);
   };
 
-  // Submit.
   const handleStartProcess = async (e) => {
     e.preventDefault();
     if (!selectedFile) return;
@@ -236,24 +226,23 @@ export const ProcessPage = () => {
     setCurrentStage('pending');
 
     try {
-      addLog(`Initializing file upload: ${selectedFile.name} (${FORMAT_BYTES(selectedFile.size)})…`, 'info');
+      addLog(`Uploading file: ${selectedFile.name} (${FORMAT_BYTES(selectedFile.size)})…`, 'info');
       const response = await api.processVideo(
         selectedFile,
         language,
         (progressEvent) => {
           const pct = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
           setUploadProgress(pct);
-          if (pct === 100) addLog('Upload finished. Awaiting server pipeline initialization…', 'info');
+          if (pct === 100) addLog('File upload finished. Initializing background pipeline…', 'info');
         }
       );
       setIsUploading(false);
-      addLog('Upload completed. File saved to server.', 'success');
-      addLog(`Analysis job queued. ID: ${response.job_id}`, 'success');
+      addLog(`Job submitted successfully. Job ID: ${response.job_id}`, 'success');
       setJobId(response.job_id);
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Server connection timed out';
+      const msg = err.response?.data?.detail || err.message || 'Server connection failed';
       setPipelineError(msg);
-      addLog(`Error submitting request: ${msg}`, 'error');
+      addLog(`Submission failed: ${msg}`, 'error');
       setIsSubmitting(false);
       setIsUploading(false);
     }
@@ -267,7 +256,6 @@ export const ProcessPage = () => {
     return 'pending';
   };
 
-  // Connection badge maps our two health surfaces.
   const connectionStatus = backendStatus === 'WAKING_UP'
     ? 'WAKING_UP'
     : sseStatus === 'CONNECTING' || sseStatus === 'ERROR'
@@ -275,39 +263,34 @@ export const ProcessPage = () => {
       : 'CONNECTED';
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-300 py-10 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Decorative ambient background glows */}
-      <div className="pointer-events-none absolute -top-20 -left-20 w-[420px] h-[420px] rounded-full bg-violet-500/10 dark:bg-violet-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 -right-20 w-[360px] h-[360px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/15 blur-3xl" />
-
-      <div className="max-w-4xl mx-auto relative z-10">
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+      <div className="max-w-4xl mx-auto">
         <AnimatePresence mode="wait">
           {!jobId ? (
             <motion.div
               key="submission"
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="p-6 sm:p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md shadow-sm"
+              exit={{ opacity: 0, y: -12 }}
+              className="saas-card p-6 sm:p-8"
             >
-              <div className="border-b border-zinc-200 dark:border-zinc-800 pb-5 mb-6">
-                <h1 className="font-syne text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                  Start Analysis Pipeline
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Analyze Meeting Recording
                 </h1>
-                <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1.5">
-                  Upload a meeting recording to extract transcripts, summaries, action items, and build a RAG knowledge base.
+                <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1">
+                  Upload an audio or video file to extract transcripts, action items, key decisions, and build an interactive RAG knowledge base.
                 </p>
               </div>
 
               <form onSubmit={handleStartProcess} className="space-y-6">
-                {/* Drag and drop */}
                 <div>
-                  <label className="block text-[11px] font-mono font-medium uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2.5">
-                    Meeting Recording File
+                  <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                    Media File
                   </label>
 
                   {!selectedFile ? (
-                    <motion.div
+                    <div
                       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                       onDragLeave={() => setIsDragging(false)}
                       onDrop={(e) => {
@@ -317,14 +300,10 @@ export const ProcessPage = () => {
                         if (f) handleFileSelection(f);
                       }}
                       onClick={() => document.getElementById('file-input').click()}
-                      whileHover={{ scale: 1.005 }}
-                      whileTap={{ scale: 0.995 }}
-                      animate={{ scale: isDragging ? 1.01 : 1 }}
-                      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-                      className={`relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${
+                      className={`relative flex flex-col items-center justify-center p-8 border border-dashed rounded-xl cursor-pointer transition-colors ${
                         isDragging
-                          ? 'border-violet-500 bg-violet-500/5'
-                          : 'border-zinc-300 dark:border-zinc-700 hover:border-violet-500 bg-white dark:bg-zinc-900/40'
+                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20'
+                          : 'border-slate-300 dark:border-slate-700 hover:border-indigo-500/80 bg-slate-50/50 dark:bg-slate-900/40'
                       }`}
                     >
                       <input
@@ -337,40 +316,37 @@ export const ProcessPage = () => {
                           if (f) handleFileSelection(f);
                         }}
                       />
-                      <motion.div
-                        animate={{ y: isDragging ? -4 : 0 }}
-                        className="p-4 rounded-full bg-violet-500/10 text-violet-500 mb-4"
-                      >
-                        <Upload className="w-8 h-8" />
-                      </motion.div>
-                      <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 text-center font-syne">
-                        Drag &amp; drop your meeting recording here
+                      <div className="p-3 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 mb-3">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-center">
+                        Click to upload or drag &amp; drop file
                       </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 text-center font-mono">
-                        or click to browse local files
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center font-mono">
+                        MP4, MP3, WAV, MOV, M4A up to 300MB
                       </p>
-                      <div className="flex flex-wrap justify-center gap-1.5 mt-5">
+                      <div className="flex flex-wrap justify-center gap-1.5 mt-4">
                         {ALLOWED_EXT.map((ext) => (
                           <span
                             key={ext}
-                            className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60 text-zinc-500 dark:text-zinc-400"
+                            className="px-2 py-0.5 text-[10px] font-mono font-medium uppercase rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400"
                           >
                             {ext}
                           </span>
                         ))}
                       </div>
-                    </motion.div>
+                    </div>
                   ) : (
-                    <div className="relative p-5 border border-violet-500/60 bg-violet-500/5 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="p-3.5 rounded-xl bg-violet-500/10 text-violet-500 flex-shrink-0">
-                          {isVideoFile(selectedFile.name) ? <Video className="w-6 h-6" /> : <FileAudio className="w-6 h-6" />}
+                    <div className="p-4 border border-indigo-500/40 bg-indigo-50/30 dark:bg-indigo-950/20 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2.5 rounded-lg bg-indigo-600 text-white flex-shrink-0">
+                          {isVideoFile(selectedFile.name) ? <Video className="w-5 h-5" /> : <FileAudio className="w-5 h-5" />}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate font-syne">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                             {selectedFile.name}
                           </p>
-                          <p className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                             {FORMAT_BYTES(selectedFile.size)}
                           </p>
                         </div>
@@ -378,78 +354,72 @@ export const ProcessPage = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedFile(null)}
-                        className="p-2 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         aria-label="Remove selected file"
                       >
-                        <X className="w-5 h-5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   )}
 
                   {validationError && (
-                    <div className="mt-3 text-xs text-rose-500 font-semibold flex items-center gap-1.5 font-mono">
-                      <AlertTriangle className="w-4 h-4" />
+                    <div className="mt-2.5 text-xs text-rose-500 font-medium flex items-center gap-1.5 font-mono">
+                      <AlertTriangle className="w-3.5 h-3.5" />
                       {validationError}
                     </div>
                   )}
                 </div>
 
-                {/* Language */}
                 <div>
-                  <label htmlFor="language-select" className="block text-[11px] font-mono font-medium uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2.5">
-                    Target Language
+                  <label htmlFor="language-select" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                    Primary Language Model Mode
                   </label>
                   <select
                     id="language-select"
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-sm focus:border-violet-500 outline-none font-mono transition-colors"
+                    className="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-slate-800 dark:text-slate-200 transition-colors"
                   >
                     <option value="english">English (automatic Gemini translation)</option>
                     <option value="hinglish">Hinglish / Code-Switched (direct multi-lingual)</option>
                   </select>
                 </div>
 
-                {/* Upload progress */}
                 {isUploading && (
-                  <div className="p-4 rounded-xl border border-violet-500/30 bg-violet-500/5 space-y-2">
-                    <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
-                      <span className="flex items-center gap-2 text-violet-600 dark:text-violet-300 font-syne">
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                  <div className="p-3.5 rounded-lg border border-indigo-500/30 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-2">
+                    <div className="flex justify-between items-center text-xs font-medium">
+                      <span className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         Uploading media file…
                       </span>
-                      <span className="font-mono text-xs text-zinc-500">{uploadProgress}%</span>
+                      <span className="font-mono text-slate-500">{uploadProgress}%</span>
                     </div>
-                    <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.2 }}
-                        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400"
+                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        style={{ width: `${uploadProgress}%` }}
+                        className="h-full rounded-full bg-indigo-600 transition-all duration-200"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* Submit */}
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
+                <button
                   type="submit"
                   disabled={isSubmitting || !selectedFile}
-                  className="w-full flex items-center justify-center gap-2.5 p-4 rounded-xl text-sm font-bold tracking-wider text-white bg-gradient-to-r from-violet-600 via-fuchsia-500 to-cyan-500 hover:shadow-[0_10px_30px_rgba(124,58,237,0.35)] disabled:opacity-50 disabled:cursor-not-allowed transition-shadow font-syne"
+                  className="w-full flex items-center justify-center gap-2 p-3.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {isUploading ? 'UPLOADING RECORDING…' : 'PROCESSING MEETING…'}
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{isUploading ? 'Uploading file…' : 'Starting pipeline…'}</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
-                      PROCESS MEETING
+                      <span>Start Pipeline Analysis</span>
+                      <ArrowRight className="w-4 h-4" />
                     </>
                   )}
-                </motion.button>
+                </button>
               </form>
             </motion.div>
           ) : (
@@ -457,113 +427,110 @@ export const ProcessPage = () => {
               key="progress"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="space-y-6"
+              className="space-y-5"
             >
               {/* Header card */}
-              <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md flex items-center justify-between">
+              <div className="p-4 saas-card flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-mono text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-200 dark:border-zinc-700">
-                    ID: {jobId}
+                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                    JOB ID: {jobId}
                   </span>
-                  <h2 className="font-syne text-base font-bold mt-1.5 flex items-center gap-2 text-zinc-900 dark:text-white">
-                    <Database className="w-4 h-4 text-violet-500" />
-                    Live Job Pipeline Tracker
+                  <h2 className="text-sm font-semibold mt-1.5 flex items-center gap-2 text-slate-900 dark:text-white">
+                    <Database className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    Live Meeting Pipeline Monitor
                   </h2>
                 </div>
                 <ConnectionStatusBadge status={connectionStatus} />
               </div>
 
               {/* Stats grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md flex items-center gap-3.5">
-                  <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-500">
-                    <Timer className="w-5 h-5" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 saas-card flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <Timer className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-500">Elapsed Time</p>
-                    <p className="font-mono text-sm font-semibold mt-0.5 text-zinc-900 dark:text-zinc-100">{timeElapsed}s</p>
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Elapsed Time</p>
+                    <p className="font-mono text-xs font-semibold mt-0.5 text-slate-900 dark:text-slate-100">{timeElapsed}s</p>
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md flex items-center gap-3.5">
-                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-500">
-                    <Clock className="w-5 h-5" />
+
+                <div className="p-4 saas-card flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <Clock className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-500">Est. Completion</p>
-                    <p className="font-mono text-sm font-semibold mt-0.5 text-zinc-900 dark:text-zinc-100">
-                      {progress === 100 ? 'Done' : estCompletionTime > 0 ? `~${estCompletionTime}s remaining` : 'Calculating…'}
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Est. Remaining</p>
+                    <p className="font-mono text-xs font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
+                      {progress === 100 ? 'Done' : estCompletionTime > 0 ? `~${estCompletionTime}s` : 'Calculating…'}
                     </p>
                   </div>
                 </div>
-                <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md flex items-center gap-3.5">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
-                    <BarChart3 className="w-5 h-5" />
+
+                <div className="p-4 saas-card flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <BarChart3 className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-500">Audio Chunks</p>
-                    <p className="font-mono text-sm font-semibold mt-0.5 text-zinc-900 dark:text-zinc-100">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Audio Segments</p>
+                    <p className="font-mono text-xs font-semibold mt-0.5 text-slate-900 dark:text-slate-100">
                       {chunksCount > 0 ? `${chunksCount} segment(s)` : 'Analyzing…'}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Progress + timeline */}
-              <div className="p-6 sm:p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/50 backdrop-blur-md space-y-6">
-                <div className="space-y-2.5">
-                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.12em]">
-                    <span className={`flex items-center gap-2 ${pipelineError ? 'text-rose-500' : progress === 100 ? 'text-emerald-500' : 'text-violet-500'}`}>
-                      {progress < 100 && !pipelineError && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {progress === 100 && <CheckCircle2 className="w-4 h-4" />}
-                      {pipelineError && <AlertTriangle className="w-4 h-4" />}
-                      {pipelineError ? 'JOB TERMINATED' : progress === 100 ? 'PIPELINE COMPLETE' : 'EXECUTING PIPELINE'}
+              {/* Progress & Stages */}
+              <div className="p-6 saas-card space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-xs font-medium">
+                    <span className={`flex items-center gap-2 ${pipelineError ? 'text-rose-500' : progress === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                      {progress < 100 && !pipelineError && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      {progress === 100 && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {pipelineError && <AlertTriangle className="w-3.5 h-3.5" />}
+                      {pipelineError ? 'Pipeline Execution Failed' : progress === 100 ? 'Pipeline Execution Complete' : 'Processing Execution Stages'}
                     </span>
-                    <span className="font-mono text-sm text-zinc-500">{progress}%</span>
+                    <span className="font-mono text-slate-500">{progress}%</span>
                   </div>
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
-                      className={`h-full rounded-full ${
-                        pipelineError
-                          ? 'bg-gradient-to-r from-rose-500 to-rose-600'
-                          : 'bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400'
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${progress}%` }}
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        pipelineError ? 'bg-rose-500' : 'bg-indigo-600 dark:bg-indigo-500'
                       }`}
                     />
                   </div>
                 </div>
 
-                {/* Timeline */}
-                <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
-                  <h3 className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500 mb-6 flex items-center gap-2">
-                    <Database className="w-3.5 h-3.5" />
-                    PIPELINE STAGES
+                {/* Pipeline Timeline */}
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-5">
+                  <h3 className="font-mono text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-5">
+                    Pipeline Stages
                   </h3>
-                  <ol className="relative pl-6 space-y-6 border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 ml-3">
+                  <ol className="relative pl-6 space-y-5 border-l border-slate-200 dark:border-slate-800 ml-2.5">
                     {STAGES.map((m) => {
                       const s = getMilestoneStatus(m);
                       return (
                         <li key={m.key} className="relative">
-                          <div className={`absolute -left-[37px] top-0 w-6 h-6 rounded-full flex items-center justify-center border bg-white dark:bg-zinc-900 transition-all ${
+                          <div className={`absolute -left-[31px] top-0.5 w-5 h-5 rounded-full flex items-center justify-center border bg-white dark:bg-[#111827] text-xs transition-all ${
                             s === 'completed' ? 'border-emerald-500 text-emerald-500' :
-                            s === 'active' ? 'border-violet-500 text-violet-500 shadow-md shadow-violet-500/30 scale-110' :
+                            s === 'active' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500/20' :
                             s === 'failed' ? 'border-rose-500 text-rose-500' :
-                            'border-zinc-300 dark:border-zinc-700 text-zinc-400'
+                            'border-slate-300 dark:border-slate-700 text-slate-400'
                           }`}>
-                            {s === 'completed' && <CheckCircle2 className="w-4 h-4" />}
-                            {s === 'active' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                            {s === 'pending' && <Clock className="w-3 h-3" />}
-                            {s === 'failed' && <AlertTriangle className="w-3.5 h-3.5" />}
+                            {s === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            {s === 'active' && <Loader2 className="w-3 h-3 animate-spin" />}
+                            {s === 'pending' && <Clock className="w-2.5 h-2.5" />}
+                            {s === 'failed' && <AlertTriangle className="w-3 h-3" />}
                           </div>
-                          <div className="pl-3">
-                            <h4 className={`text-sm font-semibold ${
-                              s === 'active' ? 'text-violet-600 dark:text-violet-300 font-bold' :
-                              s === 'completed' ? 'text-zinc-900 dark:text-white' : 'text-zinc-400'
+                          <div className="pl-2">
+                            <h4 className={`text-xs font-semibold ${
+                              s === 'active' ? 'text-indigo-600 dark:text-indigo-400' :
+                              s === 'completed' ? 'text-slate-900 dark:text-white' : 'text-slate-400'
                             }`}>{m.label}</h4>
-                            <p className={`text-[11px] mt-0.5 font-medium leading-relaxed ${
-                              s === 'active' ? 'text-zinc-600 dark:text-zinc-300' : 'text-zinc-400'
-                            }`}>{m.description}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                              {m.description}
+                            </p>
                           </div>
                         </li>
                       );
@@ -572,48 +539,48 @@ export const ProcessPage = () => {
                 </div>
               </div>
 
-              {/* Terminal */}
-              <div className="rounded-2xl overflow-hidden flex flex-col border border-zinc-200 dark:border-zinc-800 bg-zinc-950">
-                <div className="bg-zinc-900 px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-                  <span className="font-mono text-[10px] uppercase font-bold tracking-[0.12em] flex items-center gap-2 text-zinc-400">
-                    <Terminal className="w-3.5 h-3.5 text-violet-400" />
-                    Live System Logs
+              {/* Logs terminal */}
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 text-slate-200">
+                <div className="bg-slate-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                  <span className="font-mono text-[10px] uppercase font-semibold tracking-wider flex items-center gap-2 text-slate-400">
+                    <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                    Pipeline Execution Log
                   </span>
-                  <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                    streaming
+                  <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                    Live SSE
                   </span>
                 </div>
-                <div className="p-4 text-zinc-300 font-mono text-[11px] h-52 overflow-y-auto space-y-2.5 select-text">
+                <div className="p-3.5 font-mono text-[11px] h-48 overflow-y-auto space-y-2 select-text">
                   {logs.map((log, idx) => (
                     <div key={idx} className="flex gap-2.5 leading-relaxed items-start">
-                      <span className="text-zinc-600 flex-shrink-0">[{log.timestamp}]</span>
+                      <span className="text-slate-600 flex-shrink-0">[{log.timestamp}]</span>
                       <span className={
-                        log.type === 'success' ? 'text-emerald-400 font-semibold' :
-                        log.type === 'error' ? 'text-rose-400 font-semibold' : 'text-zinc-300'
+                        log.type === 'success' ? 'text-emerald-400' :
+                        log.type === 'error' ? 'text-rose-400' : 'text-slate-300'
                       }>{log.message}</span>
                     </div>
                   ))}
                   {logs.length === 0 && (
-                    <div className="text-zinc-600 italic">Connecting and initializing process streams…</div>
+                    <div className="text-slate-600 italic">Initializing execution stream…</div>
                   )}
                   <div ref={terminalEndRef} />
                 </div>
               </div>
 
               {pipelineError && (
-                <div className="p-4 rounded-2xl border border-rose-500/30 bg-rose-500/5 text-rose-500 flex flex-col gap-2.5">
-                  <div className="flex items-center gap-2 font-bold text-sm">
-                    <AlertTriangle className="w-5 h-5" />
+                <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 flex flex-col gap-2.5">
+                  <div className="flex items-center gap-2 font-semibold text-xs uppercase tracking-wider">
+                    <AlertTriangle className="w-4 h-4" />
                     Pipeline Job Terminated
                   </div>
-                  <p className="text-xs font-mono text-zinc-600 dark:text-zinc-300 leading-relaxed bg-zinc-950/60 p-3 rounded-xl border border-zinc-800">
+                  <p className="text-xs font-mono leading-relaxed bg-slate-950 text-slate-300 p-3 rounded-lg border border-slate-800">
                     {pipelineError}
                   </p>
                   <button
                     onClick={() => setJobId(null)}
-                    className="w-fit mt-1 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 transition-colors active:scale-95 flex items-center gap-1.5"
+                    className="w-fit px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors"
                   >
-                    Configure New Job
+                    Start New Job
                   </button>
                 </div>
               )}
@@ -626,3 +593,4 @@ export const ProcessPage = () => {
 };
 
 export default ProcessPage;
+

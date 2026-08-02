@@ -4,17 +4,9 @@ import React from 'react';
  * Tiny, dep-free markdown → React renderer.
  * Supports: fenced code blocks, ATX headers (#, ##, ###), ordered + unordered
  * lists, paragraphs, **bold**, `inline code`, hard line breaks.
- * Not a full CommonMark impl — covers what MeetMind surfaces (LLM summary,
- * action items, chat replies). Heavy markdown is better served by `marked`
- * if/when we add it.
  */
 
-
-const _escapeHtml = (s) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 const renderInline = (text, keyPrefix) => {
-  // Order matters: code first (so its content isn't re-parsed), then bold.
   const tokens = [];
   const codeRe = /`([^`\n]+)`/g;
   let lastIndex = 0;
@@ -32,7 +24,7 @@ const renderInline = (text, keyPrefix) => {
       return (
         <code
           key={key}
-          className="px-1.5 py-0.5 rounded bg-zinc-200/70 dark:bg-zinc-800 font-mono text-[0.85em] text-violet-600 dark:text-violet-300"
+          className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[0.82em] font-medium text-indigo-600 dark:text-indigo-300 border border-slate-200/60 dark:border-slate-700/60"
         >
           {t.value}
         </code>
@@ -42,7 +34,7 @@ const renderInline = (text, keyPrefix) => {
     const parts = t.value.split(/\*\*([^*]+)\*\*/g);
     return parts.map((p, j) =>
       j % 2 === 1 ? (
-        <strong key={`${key}-b${j}`} className="font-semibold text-zinc-900 dark:text-zinc-100">
+        <strong key={`${key}-b${j}`} className="font-semibold text-slate-900 dark:text-slate-100">
           {p}
         </strong>
       ) : (
@@ -58,18 +50,18 @@ const renderBlock = (block, idx, opts = {}) => {
 
   if (block.type === 'code') {
     return (
-      <div key={idx} className="my-4 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-        <div className="bg-zinc-100 dark:bg-zinc-900 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
+      <div key={idx} className="my-3 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-950">
+        <div className="bg-slate-900 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400 uppercase tracking-wider">
           <span>{block.lang || 'code'}</span>
           <button
             type="button"
             onClick={() => navigator.clipboard?.writeText(block.content)}
-            className="text-zinc-500 hover:text-violet-500 transition-colors"
+            className="text-slate-400 hover:text-white transition-colors"
           >
-            copy
+            Copy
           </button>
         </div>
-        <pre className="p-4 bg-zinc-950 text-zinc-200 overflow-x-auto text-xs font-mono leading-relaxed">
+        <pre className="p-3.5 bg-slate-950 text-slate-200 overflow-x-auto text-xs font-mono leading-relaxed select-text">
           <code>{block.content}</code>
         </pre>
       </div>
@@ -77,17 +69,17 @@ const renderBlock = (block, idx, opts = {}) => {
   }
 
   if (block.type === 'h1') {
-    return <h1 key={idx} className="text-lg font-bold mt-6 mb-3 text-zinc-900 dark:text-zinc-100 font-syne">{renderInline(block.text, `h1-${idx}`)}{cursor}</h1>;
+    return <h1 key={idx} className="text-base font-semibold mt-4 mb-2 text-slate-900 dark:text-white tracking-tight">{renderInline(block.text, `h1-${idx}`)}{cursor}</h1>;
   }
   if (block.type === 'h2') {
-    return <h2 key={idx} className="text-base font-bold mt-5 mb-2 text-zinc-900 dark:text-zinc-100 font-syne">{renderInline(block.text, `h2-${idx}`)}{cursor}</h2>;
+    return <h2 key={idx} className="text-sm font-semibold mt-3.5 mb-1.5 text-slate-900 dark:text-white tracking-tight">{renderInline(block.text, `h2-${idx}`)}{cursor}</h2>;
   }
   if (block.type === 'h3') {
-    return <h3 key={idx} className="text-sm font-bold mt-4 mb-2 text-violet-600 dark:text-violet-300">{renderInline(block.text, `h3-${idx}`)}{cursor}</h3>;
+    return <h3 key={idx} className="text-xs font-semibold mt-3 mb-1 text-indigo-600 dark:text-indigo-400 tracking-tight">{renderInline(block.text, `h3-${idx}`)}{cursor}</h3>;
   }
   if (block.type === 'ul') {
     return (
-      <ul key={idx} className="list-disc pl-5 my-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+      <ul key={idx} className="list-disc pl-4 my-2 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
         {block.items.map((it, i) => (
           <li key={i} className="leading-relaxed">
             {renderInline(it, `ul-${idx}-${i}`)}
@@ -99,7 +91,7 @@ const renderBlock = (block, idx, opts = {}) => {
   }
   if (block.type === 'ol') {
     return (
-      <ol key={idx} className="list-decimal pl-5 my-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
+      <ol key={idx} className="list-decimal pl-4 my-2 space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
         {block.items.map((it, i) => (
           <li key={i} className="leading-relaxed">
             {renderInline(it, `ol-${idx}-${i}`)}
@@ -110,22 +102,20 @@ const renderBlock = (block, idx, opts = {}) => {
     );
   }
   if (block.type === 'blank') {
-    return <div key={idx} className="h-2" />;
+    return <div key={idx} className="h-1.5" />;
   }
   // paragraph
   return (
-    <p key={idx} className="text-sm leading-relaxed mb-2 text-zinc-700 dark:text-zinc-300">
+    <p key={idx} className="text-xs sm:text-sm leading-relaxed mb-2 text-slate-700 dark:text-slate-300">
       {renderInline(block.text, `p-${idx}`)}
       {cursor}
     </p>
   );
 };
 
-/** Parse markdown text into a block array. */
 export const parseMarkdown = (text = '') => {
   if (!text) return [];
 
-  // Split on fenced code blocks first.
   const segments = text.split(/(```[\w-]*\n[\s\S]*?```)/g);
   const blocks = [];
 
@@ -136,7 +126,6 @@ export const parseMarkdown = (text = '') => {
       blocks.push({ type: 'code', lang: fenceMatch[1] || '', content: fenceMatch[2] });
       continue;
     }
-    // Line-by-line parsing of the non-code segment.
     const lines = seg.split('\n');
     let para = '';
     let ul = [];
@@ -185,7 +174,6 @@ export const parseMarkdown = (text = '') => {
   return blocks;
 };
 
-/** Convenience render: text → React nodes. */
 export const Markdown = ({ text, streaming = false }) => {
   const blocks = parseMarkdown(text);
   return (
@@ -196,3 +184,4 @@ export const Markdown = ({ text, streaming = false }) => {
 };
 
 export default Markdown;
+

@@ -3,23 +3,23 @@ import { Github, Code } from 'lucide-react';
 
 export const Footer = () => {
   return (
-    <footer className="w-full border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 py-6 px-4 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-          <Code className="w-4 h-4 text-violet-500" />
-          <span>Built with React 19, FastAPI, LangGraph, LangSmith, LangChain, and Gemini.</span>
+    <footer className="w-full border-t border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0B0F17] py-5 px-4 transition-colors duration-200">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2">
+          <Code className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <span>Built with React 19, FastAPI, LangGraph, LangChain &amp; Gemini.</span>
         </div>
-        <div className="text-xs text-zinc-400 dark:text-zinc-500">
-          © {new Date().getFullYear()} MeetMind AI · Open source under MIT License.
-        </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 text-slate-400 dark:text-slate-500">
+          <span>© {new Date().getFullYear()} MeetMind AI</span>
+          <span>·</span>
           <a
             href="https://github.com/piyuskumar-dev/MeetMind-AI"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-zinc-500 dark:text-zinc-400 hover:text-violet-500 transition-colors"
+            className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1 font-medium"
           >
-            <Github className="w-4 h-4" />
+            <Github className="w-3.5 h-3.5" />
+            <span>GitHub</span>
           </a>
         </div>
       </div>
@@ -28,3 +28,4 @@ export const Footer = () => {
 };
 
 export default Footer;
+

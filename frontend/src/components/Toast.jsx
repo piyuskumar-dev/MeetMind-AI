@@ -3,15 +3,9 @@ import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ICONS = {
-  success: <CheckCircle className="w-5 h-5 text-emerald-400" />,
-  error: <AlertCircle className="w-5 h-5 text-rose-400" />,
-  info: <Info className="w-5 h-5 text-cyan-400" />,
-};
-
-const PILL = {
-  success: 'bg-zinc-950/95 border-emerald-500/30 text-white',
-  error: 'bg-zinc-950/95 border-rose-500/30 text-white',
-  info: 'bg-zinc-950/95 border-cyan-500/30 text-white',
+  success: <CheckCircle className="w-4 h-4 text-emerald-500" />,
+  error: <AlertCircle className="w-4 h-4 text-rose-500" />,
+  info: <Info className="w-4 h-4 text-sky-500" />,
 };
 
 export const Toast = ({ message, type = 'success', onClose, duration = 3000 }) => {
@@ -23,19 +17,20 @@ export const Toast = ({ message, type = 'success', onClose, duration = 3000 }) =
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: 50, scale: 0.9 }}
+        initial={{ opacity: 0, y: 20, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur shadow-2xl ${PILL[type] ?? PILL.info}`}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 shadow-elevated backdrop-blur-md"
       >
         {ICONS[type] ?? ICONS.info}
-        <p className="text-sm font-medium">{message}</p>
+        <p className="text-xs font-medium">{message}</p>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors ml-2"
+          className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors ml-1"
           aria-label="Close notification"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </motion.div>
     </AnimatePresence>
@@ -43,3 +38,4 @@ export const Toast = ({ message, type = 'success', onClose, duration = 3000 }) =
 };
 
 export default Toast;
+

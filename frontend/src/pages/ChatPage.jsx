@@ -7,16 +7,16 @@ import { Toast } from '../components/Toast';
 import { api } from '../services/api';
 import {
   MessageSquare, Send, ArrowLeft, Loader2, Bot, User,
-  Trash2, Copy, Check, ChevronDown, ChevronUp, BookOpen, History
+  Trash2, Copy, Check, ChevronDown, ChevronUp, BookOpen, History, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Markdown } from '../utils/markdown';
 
 const SUGGESTED = [
   'What key decisions were reached?',
-  'Detail the action items with owners and deadlines.',
-  'Who is responsible for the main milestones?',
-  'Give a brief overview of the topics discussed.',
+  'List all action items with owners and deadlines.',
+  'Who is responsible for the main deliverables?',
+  'Summarize the core discussion topics.',
 ];
 
 export const ChatPage = () => {
@@ -63,18 +63,19 @@ export const ChatPage = () => {
 
   if (!job) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-        <div className="pointer-events-none absolute -top-10 -left-10 w-[360px] h-[360px] rounded-full bg-violet-500/10 dark:bg-violet-500/20 blur-3xl" />
-        <MessageSquare className="w-16 h-16 text-zinc-400 opacity-40 mb-4" />
-        <h2 className="font-syne text-xl font-bold mb-2 text-zinc-900 dark:text-white">No Active Chat Session</h2>
-        <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-sm mb-6 leading-relaxed">
-          Chat sessions require an analyzed video context. Start a job to chat with its transcript.
+      <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0F17] flex flex-col items-center justify-center p-8 text-center transition-colors">
+        <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mb-4">
+          <MessageSquare className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-semibold mb-1 text-slate-900 dark:text-white">No Active Session</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm max-w-sm mb-6 leading-relaxed">
+          Select or process a meeting recording to start an interactive transcript Q&amp;A session.
         </p>
         <Link
           to="/process"
-          className="px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+          className="px-4 py-2.5 bg-slate-900 dark:bg-indigo-600 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-subtle"
         >
-          Analyze Video
+          Analyze Meeting
         </Link>
       </div>
     );
@@ -177,7 +178,7 @@ export const ChatPage = () => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedIndex(idx);
-      showToast('Message copied!');
+      showToast('Message copied to clipboard');
       setTimeout(() => setCopiedIndex(null), 2000);
     } catch {
       showToast('Clipboard access denied', 'error');
@@ -201,50 +202,47 @@ export const ChatPage = () => {
       : 'CONNECTED';
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex transition-colors duration-300 relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full bg-violet-500/10 dark:bg-violet-500/15 blur-3xl" />
-      <div className="pointer-events-none absolute top-2/3 -right-20 w-[420px] h-[420px] rounded-full bg-cyan-400/10 dark:bg-cyan-400/10 blur-3xl" />
-
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0B0F17] flex transition-colors duration-200">
       <Sidebar
         activeJobId={job?.id}
         mobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col h-[calc(100vh-4rem)] bg-white/90 dark:bg-zinc-950/80 backdrop-blur-md border-l border-zinc-200 dark:border-zinc-800 transition-colors duration-300 relative z-10">
+      <main className="flex-1 flex flex-col h-[calc(100vh-4rem)] bg-white dark:bg-[#0B0F17] border-l border-slate-200/80 dark:border-slate-800 transition-colors relative">
         {/* Header */}
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-white/80 dark:bg-zinc-900/80">
+        <div className="p-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0B0F17]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1.5 flex-shrink-0 lg:hidden">
               <button
                 onClick={() => navigate('/results')}
-                className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors lg:hidden"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
                 title="Back to dashboard"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors lg:hidden"
-                title="View analysis history"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                title="View history"
               >
                 <History className="w-4 h-4" />
               </button>
             </div>
             <div className="min-w-0">
-              <h1 className="font-syne text-sm font-bold text-zinc-900 dark:text-white line-clamp-1">
-                Chat · {job.result?.title || 'Meeting'}
+              <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                {job.result?.title || 'Meeting Assistant'}
               </h1>
-              <p className="text-[10px] text-zinc-500 font-mono mt-0.5 truncate max-w-[200px] sm:max-w-md">
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5 truncate max-w-md">
                 {job.source}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <ConnectionStatusBadge status={connectionStatus} />
             <button
               onClick={clearChat}
-              className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Clear conversation"
             >
               <Trash2 className="w-4 h-4" />
@@ -252,21 +250,23 @@ export const ChatPage = () => {
           </div>
         </div>
 
-        {/* Messages */}
+        {/* Messages body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 select-text">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 max-w-xl mx-auto">
-              <Bot className="w-12 h-12 text-violet-500 mb-4" />
-              <h3 className="font-syne text-base font-bold mb-1.5 text-zinc-900 dark:text-white">Converse with your meeting</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm leading-relaxed mb-6">
-                Ask specific questions, fetch quotes, or trace assignments. Answers are grounded in similarity search over the transcript.
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-semibold mb-1 text-slate-900 dark:text-white">Meeting Knowledge Assistant</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed mb-6">
+                Ask questions about decisions, assigned action items, or transcript details. All responses are derived via RAG similarity search.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
                 {SUGGESTED.map((q, i) => (
                   <button
                     key={i}
                     onClick={() => setInputVal(q)}
-                    className="p-3 text-left text-xs border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 hover:border-violet-500 dark:hover:border-violet-500 transition-colors truncate font-medium"
+                    className="p-3 text-left text-xs border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50/50 dark:bg-slate-900/40 hover:border-indigo-500/80 hover:bg-white dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 transition-all font-medium truncate"
                   >
                     {q}
                   </button>
@@ -274,36 +274,36 @@ export const ChatPage = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-6 max-w-3xl mx-auto w-full">
+            <div className="space-y-5 max-w-3xl mx-auto w-full">
               {messages.map((msg, idx) => {
                 const isBot = msg.role === 'assistant';
                 const hasSources = isBot && msg.sources && msg.sources.length > 0;
                 return (
                   <motion.div
                     key={idx}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className={`flex gap-4 p-4 rounded-2xl border transition-colors ${
+                    transition={{ duration: 0.18 }}
+                    className={`flex gap-3 p-4 rounded-xl border transition-colors ${
                       isBot
-                        ? 'bg-zinc-50 dark:bg-zinc-900/70 border-zinc-200 dark:border-zinc-800'
-                        : 'bg-violet-500/5 border-violet-500/20 flex-row-reverse'
+                        ? 'saas-card'
+                        : 'bg-indigo-50/40 dark:bg-indigo-950/20 border-indigo-500/30 flex-row-reverse'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      isBot ? 'bg-violet-500/10 text-violet-500' : 'bg-violet-500 text-white'
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs ${
+                      isBot ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-white'
                     }`}>
-                      {isBot ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                      {isBot ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-500">
-                          {isBot ? 'MeetMind AI' : 'You'}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">
+                          {isBot ? 'MeetMind Assistant' : 'You'}
                         </span>
                         {isBot && msg.content && (
                           <button
                             onClick={() => copyMessage(msg.content, idx)}
-                            className="p-1 rounded text-zinc-400 hover:text-violet-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                             title="Copy reply"
                           >
                             {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -312,10 +312,10 @@ export const ChatPage = () => {
                       </div>
                       <div>
                         {!msg.content && isBot && msg.isStreaming ? (
-                          <span className="inline-flex gap-1.5 items-center mt-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                          <span className="inline-flex gap-1 items-center my-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-bounce" style={{ animationDelay: '300ms' }} />
                           </span>
                         ) : (
                           <Markdown text={msg.content || ''} streaming={!!msg.isStreaming} />
@@ -323,13 +323,13 @@ export const ChatPage = () => {
                       </div>
 
                       {hasSources && (
-                        <div className="mt-4 pt-3.5 border-t border-zinc-200 dark:border-zinc-800">
+                        <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800">
                           <button
                             onClick={() => toggleCitation(idx)}
-                            className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] text-zinc-500 hover:text-violet-500 transition-colors"
+                            className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                           >
                             <BookOpen className="w-3.5 h-3.5" />
-                            <span>Sources ({msg.sources.length})</span>
+                            <span>Grounded Context ({msg.sources.length} sources)</span>
                             {openCitations[idx] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                           </button>
                           <AnimatePresence>
@@ -338,18 +338,18 @@ export const ChatPage = () => {
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden mt-2.5 space-y-2"
+                                className="overflow-hidden mt-2 space-y-2"
                               >
                                 {msg.sources.map((src, sIdx) => (
                                   <div
                                     key={sIdx}
-                                    className="p-3 bg-zinc-50 dark:bg-zinc-950/90 rounded-xl border border-zinc-200 dark:border-zinc-800 text-[11px] leading-relaxed select-text font-mono"
+                                    className="p-3 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono leading-relaxed select-text text-slate-300"
                                   >
-                                    <div className="flex justify-between font-bold text-[9px] uppercase tracking-[0.12em] text-zinc-500 mb-1 border-b border-zinc-200 dark:border-zinc-800 pb-1">
+                                    <div className="flex justify-between font-semibold text-[9px] uppercase tracking-wider text-slate-500 mb-1 pb-1 border-b border-slate-800">
                                       <span>Chunk #{src.chunk_index ?? src.chunk_id ?? sIdx + 1}</span>
-                                      {src.score && <span>score {src.score.toFixed?.(2) ?? src.score}</span>}
+                                      {src.score && <span>Relevance: {src.score.toFixed?.(2) ?? src.score}</span>}
                                     </div>
-                                    <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{src.content}</p>
+                                    <p className="whitespace-pre-wrap">{src.content}</p>
                                   </div>
                                 ))}
                               </motion.div>
@@ -366,8 +366,8 @@ export const ChatPage = () => {
           )}
         </div>
 
-        {/* Input */}
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80">
+        {/* Input box */}
+        <div className="p-4 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0B0F17]">
           <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto flex gap-2">
             <input
               type="text"
@@ -375,16 +375,16 @@ export const ChatPage = () => {
               disabled={chatStatus === 'CONNECTING'}
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              placeholder="Ask about decisions, action items, or anything else…"
-              className="flex-1 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-sm focus:border-violet-500 focus:ring-1 focus:ring-violet-500/30 outline-none transition-colors placeholder:text-zinc-400"
+              placeholder="Ask a question about this meeting…"
+              className="flex-1 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs sm:text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 dark:text-white transition-colors placeholder:text-slate-400"
             />
             <button
               type="submit"
               disabled={!inputVal.trim() || chatStatus === 'CONNECTING'}
-              className="p-3.5 rounded-xl text-white bg-gradient-to-r from-violet-600 to-cyan-500 hover:shadow-[0_10px_30px_rgba(124,58,237,0.35)] disabled:opacity-50 disabled:cursor-not-allowed transition-shadow flex items-center justify-center flex-shrink-0"
-              title="Send"
+              className="px-4 py-3 rounded-lg text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-subtle flex items-center justify-center flex-shrink-0"
+              title="Send message"
             >
-              {chatStatus === 'CONNECTING' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              {chatStatus === 'CONNECTING' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
         </div>

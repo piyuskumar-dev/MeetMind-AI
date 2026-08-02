@@ -23,27 +23,27 @@ const Layout = ({ children }) => {
   }, [backendStatus]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-[#FAFAFA] dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Navbar />
 
       {backendStatus === 'WAKING_UP' && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-700 dark:text-amber-300 py-2.5 px-4 text-xs sm:text-sm font-medium text-center flex items-center justify-center gap-2 z-50">
+        <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-800 dark:text-amber-300 py-2 px-4 text-xs font-mono font-medium text-center flex items-center justify-center gap-2 z-50">
           <span className="relative inline-flex w-2 h-2">
-            <span className="absolute inset-0 rounded-full bg-amber-500 animate-ping" />
+            <span className="absolute inset-0 rounded-full bg-amber-500 animate-ping opacity-75" />
             <span className="relative inline-flex w-2 h-2 rounded-full bg-amber-500" />
           </span>
-          <span>Backend is starting up. Render free-tier wake-up can take up to 60 seconds.</span>
+          <span>Backend service starting up. Render free-tier cold start may require 30–60s.</span>
         </div>
       )}
 
       {showSuccess && (
-        <div className="bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-700 dark:text-emerald-300 py-2.5 px-4 text-xs sm:text-sm font-medium text-center flex items-center justify-center gap-2 z-50">
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-800 dark:text-emerald-300 py-2 px-4 text-xs font-mono font-medium text-center flex items-center justify-center gap-2 z-50">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span>Backend connected. Ready to process.</span>
+          <span>Backend service connected and operational.</span>
         </div>
       )}
 
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 flex flex-col">{children}</div>
       <Footer />
     </div>
   );
@@ -69,3 +69,4 @@ function App() {
 }
 
 export default App;
+

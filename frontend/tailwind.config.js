@@ -8,37 +8,56 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        syne: ['Syne', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Geist', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['Geist Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+        display: ['Geist', 'Inter', 'sans-serif'],
       },
       colors: {
-        bg: {
-          light: '#f8fafc',
-          dark: '#0a0a0f',
+        canvas: {
+          light: '#FAFAFA',
+          dark: '#0B0F17',
         },
-        surface: {
-          light: '#ffffff',
-          dark: '#111118',
-          dark2: '#1a1a25',
+        panel: {
+          light: '#FFFFFF',
+          dark: '#111827',
+          darker: '#0F172A',
         },
-        border: {
-          light: '#e2e8f0',
-          dark: '#2a2a3a',
+        subtle: {
+          light: '#F5F5F5',
+          dark: '#1E293B',
+        },
+        primary: {
+          DEFAULT: '#4F46E5',
+          hover: '#4338CA',
+          light: '#6366F1',
+          subtle: '#EEF2FF',
+          darkSubtle: 'rgba(79, 70, 229, 0.15)',
         },
         accent: {
-          DEFAULT: '#7c3aed',
-          glow: '#9f67ff',
-          cyan: '#06b6d4',
-          success: '#10b981',
-          warning: '#f59e0b',
-          danger: '#ef4444',
+          slate: '#334155',
+          emerald: '#10B981',
+          sky: '#0284C7',
+          amber: '#F59E0B',
+          rose: '#EF4444',
         }
+      },
+      boxShadow: {
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+        'elevated': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'shimmer': 'shimmer 2s linear infinite',
+      },
+      keyframes: {
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        }
       }
     },
   },
   plugins: [],
 }
+

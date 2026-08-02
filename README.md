@@ -63,13 +63,23 @@ graph TD
         AudioChunks -->|3. Neural STT| GeminiSTT[Gemini Audio STT]
         GeminiSTT -->|4. Text Transcript| Summarizer[Analysis Chain]
         Summarizer -->|5. Single-pass LLM| Extractor[Consolidated LLM Output]
-        Extractor -->|6. Load Chunks| VectorDB[SimpleVectorStore]
+        Extractor -->|6. Index Chunks| VectorDB[SimpleVectorStore]
     end
     
     FastAPI -.->|GET /stream - SSE status| React
-    VectorDB -->|7. Generate RAG Chain| RAGChain[LangChain Context]
-    React -->|POST /chat/stream| RAGChain
-    RAGChain -.->|Token-by-Token SSE Stream| React
+
+    subgraph LangGraph RAG Engine & LangSmith
+        React -->|POST /chat/stream| LG[LangGraph StateGraph DAG]
+        VectorDB -->|Vector Similarity Search| LG
+        LG -->|1. Preprocess Query| LG_Pre[preprocess_query]
+        LG_Pre -->|2. Retrieve Docs| LG_Ret[retrieve_documents]
+        LG_Ret -->|3. Format Context| LG_Fmt[format_context]
+        LG_Fmt -->|4. Generate Answer| LG_Gen[generate_answer Gemini LLM]
+        LG_Gen -->|5. Postprocess| LG_Post[postprocess_response]
+        LG -.->|Trace & Telemetry| LS[LangSmith Platform]
+    end
+
+    LG_Post -.->|Token-by-Token SSE Stream| React
 ```
 
 ### SSE Communication Sequence
@@ -79,6 +89,8 @@ sequenceDiagram
     actor Client as React Client
     participant API as FastAPI Server
     participant Worker as Background Worker
+    participant LG as LangGraph StateGraph DAG
+    participant LS as LangSmith Tracing
     
     Client->>API: POST /process (Multipart Form File)
     API->>Worker: Dispatch Background Pipeline
@@ -99,13 +111,15 @@ sequenceDiagram
         Worker-->>Client: SSE Event: completed { result, transcript }
     end
     
-    Note over Client, API: Chat session activated (RAG)
+    Note over Client, LG: Chat session activated (LangGraph RAG)
     Client->>API: POST /chat/stream { job_id, question }
-    API->>API: Load SimpleVectorStore + Retriever
+    API->>LG: Invoke stream_rag_graph_tokens(job_id, question)
+    LG->>LS: Send Trace Run Metadata (@traceable)
+    LG->>LG: Execute Nodes: Preprocess -> Retrieve -> Format -> Generate -> Postprocess
     loop LLM token streaming
-        API-->>Client: SSE Token: data: { token: "..." }
+        LG-->>Client: SSE Token: data: { token: "..." }
     end
-    API-->>Client: SSE Event: completed
+    LG-->>Client: SSE Event: completed
 ```
 
 ---
@@ -168,13 +182,16 @@ sequenceDiagram
 
 ## 🔌 API Documentation
 
-### 1. Health Status Ping
-Checks server availability.
-- **URL**: `/`
+### 1. Health & Warmup Status Ping
+Checks server availability and warms up cold-start backend instances.
+- **URL**: `/`, `/warmup`, or `/health`
 - **Method**: `GET`
 - **Response**:
   ```json
-  {"message": "AI Video Assistant is running!"}
+  {
+    "status": "online",
+    "message": "MeetMind AI backend is warm and ready!"
+  }
   ```
 
 ### 2. Trigger Recording Analysis
@@ -228,11 +245,11 @@ EventSource Server-Sent Events endpoint detailing real-time logs and progress.
     }
     ```
 
-### 4. Stream RAG Chat Response
-Streams conversational LLM tokens answering a question about the meeting context.
-- **URL**: `/chat/stream`
-- **Method**: `POST`
-- **Request Payload**:
+### 4. Stream RAG Chat Response (LangGraph Driven)
+Streams conversational LLM tokens answering a question about the meeting context via the LangGraph DAG pipeline.
+- **URL**: `/chat/stream` (Supports `POST` with JSON body and `GET` query parameters `?job_id=...&question=...` for browser `EventSource` compatibility)
+- **Method**: `POST` or `GET`
+- **Request Payload (POST)**:
   ```json
   {
     "job_id": "36f88fc1-dbfa-469c-b44b-a63b654acb1a",
